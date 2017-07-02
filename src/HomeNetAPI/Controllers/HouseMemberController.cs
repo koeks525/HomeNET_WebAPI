@@ -315,6 +315,44 @@ namespace HomeNetAPI.Controllers
             }
         }
 
+        [HttpGet]
+        private async Task<IActionResult> GetHouseMember([FromQuery] int houseMemberID, [FromQuery] String clientCode)
+        {
+            SingleResponse<HouseMember> response = new SingleResponse<HouseMember>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedMembership = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMembership(houseMemberID);
+                });
+                if (selectedMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The house member data returned no results";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                response.DidError = false;
+                response.Model = selectedMembership;
+                response.Message = "Herewith the selected membership:";
+                return Ok(response);
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
     }
 }
 
