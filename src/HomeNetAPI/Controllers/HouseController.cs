@@ -111,22 +111,26 @@ namespace HomeNetAPI.Controllers
                     return BadRequest(response);
                 }
 
-                String directory = $"C:/HomeNET/Houses/{createdHouse.HouseID}/";
+                String directory = $"C:/HomeNET/Houses/{createdHouse.HouseID}";
                 if (!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
-
-                //Source: https://stackoverflow.com/questions/26741191/ioexception-the-process-cannot-access-the-file-file-path-because-it-is-being 
-                using (var fileStream = new FileStream(directory + imageFile.FileName, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite))
+                String newFileName = imageFile.FileName;
+                //The compressed file has got colons - this is giving problems with C#
+                if (imageFile.FileName.Contains(":"))
                 {
-                    await imageFile.CopyToAsync(fileStream);
-                    createdHouse.HouseImage = directory + imageFile.FileName;
+                    newFileName = imageFile.FileName.Replace(":", "_");
                 }
 
-                SKBitmap bitmap = SKBitmap.Decode(createdHouse.HouseImage);
-                String resizedImage = imageProcessor.ResizeImage(bitmap, createdHouse.HouseImage, imageFile.FileName);
-                createdHouse.ResizedHouseImage = resizedImage;
+                //Source: https://stackoverflow.com/questions/26741191/ioexception-the-process-cannot-access-the-file-file-path-because-it-is-being 
+                using (var fileStream = new FileStream(directory+"/"+newFileName, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    await imageFile.CopyToAsync(fileStream);
+                    createdHouse.HouseImage = directory + "/" + newFileName;
+                }
+
+
                     var finalResult = await Task.Run(() =>
                     {
                         return houseRepository.UpdateHouse(createdHouse);

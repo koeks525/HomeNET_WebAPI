@@ -30,8 +30,9 @@ namespace HomeNetAPI.Controllers
         private IImageProcessor imageProcessor;
 
 
-        public HousePostController(UserManager<User> userManager, IHousePostRepository housePostRepository, IHouseRepository houseRepository, IImageProcessor imageProcessor)
+        public HousePostController(UserManager<User> userManager, IHousePostRepository housePostRepository, IHouseRepository houseRepository, IImageProcessor imageProcessor, IHouseMemberRepository houseMemberRepository)
         {
+            this.houseMemberRepository = houseMemberRepository;
             this.userManager = userManager;
             this.housePostRepository = housePostRepository;
             this.houseRepository = houseRepository;
