@@ -274,15 +274,11 @@ namespace HomeNetAPI.Migrations
                     b.Property<string>("Name")
                         .IsRequired();
 
-                    b.Property<int>("OwnerID");
-
-                    b.Property<string>("ResizedHouseImage");
-
-                    b.Property<int?>("UserId");
+                    b.Property<int>("UserID");
 
                     b.HasKey("HouseID");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserID");
 
                     b.ToTable("House");
                 });
@@ -1045,7 +1041,7 @@ namespace HomeNetAPI.Migrations
                 {
                     b.HasOne("HomeNetAPI.Models.User", "User")
                         .WithMany("Houses")
-                        .HasForeignKey("UserId");
+                        .HasForeignKey("UserID");
                 });
 
             modelBuilder.Entity("HomeNetAPI.Models.HouseAnnouncement", b =>

@@ -46,7 +46,7 @@ namespace HomeNetAPI.Repository
                 HouseImage = updateHouse.HouseImage,
                 IsDeleted = updateHouse.IsDeleted,
                 Name = updateHouse.Name,
-                OwnerID = updateHouse.OwnerID
+                UserID = updateHouse.UserID
 
             };
             var result = homeNetContext.Houses.FirstOrDefault(h => h.HouseID == house.HouseID);
@@ -64,15 +64,8 @@ namespace HomeNetAPI.Repository
 
         public List<House> GetHouses(int userID)
         {
-            List<House> results = new List<House>();
-            foreach (House currentHouse in homeNetContext.Houses)
-            {
-                if (currentHouse.OwnerID == userID)
-                {
-                    results.Add(currentHouse);
-                }
-            }
-            return results;
+            var resultHouses = homeNetContext.Houses.Where(u => u.UserID == userID && u.IsDeleted == 0).ToList();
+            return resultHouses;
         }
 
         public List<House> SearchHouses(String searchParameter)

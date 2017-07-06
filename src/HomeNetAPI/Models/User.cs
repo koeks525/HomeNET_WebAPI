@@ -26,7 +26,7 @@ namespace HomeNetAPI.Models
         public override string UserName { get; set; }
         [Required]
         public string Password { get; set; }
-        
+
         public string SecurityQuestion { get; set; }
        
         public string SecurityAnswer { get; set; }
@@ -39,6 +39,8 @@ namespace HomeNetAPI.Models
 
         [Required]
         public string Gender { get; set; }
+
+        private int IsActive { get; set; } = 0;
 
         [ForeignKey("CountryID")]
         public int CountryID { get; set; }

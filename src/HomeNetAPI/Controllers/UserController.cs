@@ -656,6 +656,55 @@ namespace HomeNetAPI.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetUserMemberships([FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            ListResponse<HouseMember> response = new ListResponse<HouseMember>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the selected user credentials";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(selectedUser.Id);
+                });
+                if (selectedMemberships != null)
+                {
+                    response.DidError = false;
+                    response.Message = $"Here are memberships found for {selectedUser.Name} {selectedUser.Surname}: ";
+                    response.Model = selectedMemberships;
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = $"No house memberships were found for {selectedUser.Name} {selectedUser.Surname}";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
 
         
 

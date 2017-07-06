@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace HomeNetAPI.Migrations
 {
-    public partial class InitialMigration : Migration
+    public partial class JulyMigration : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -44,83 +44,13 @@ namespace HomeNetAPI.Migrations
                     KeyID = table.Column<int>(nullable: false)
                         .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
                     Description = table.Column<string>(nullable: false),
+                    IsDeleted = table.Column<int>(nullable: false),
+                    Name = table.Column<string>(nullable: false),
                     Value = table.Column<string>(nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Key", x => x.KeyID);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "MessageThreadMessage",
-                columns: table => new
-                {
-                    MessageThreadMessageID = table.Column<int>(nullable: false)
-                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
-                    DateSent = table.Column<string>(nullable: false),
-                    HouseMemberID = table.Column<int>(nullable: false),
-                    Message = table.Column<string>(nullable: false),
-                    MessageThreadID = table.Column<int>(nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_MessageThreadMessage", x => x.MessageThreadMessageID);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "MessageThreadParticipant",
-                columns: table => new
-                {
-                    MessageThreadParticipantID = table.Column<int>(nullable: false)
-                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
-                    HouseMemberID = table.Column<int>(nullable: false),
-                    IsDeleted = table.Column<int>(nullable: false),
-                    MessageThreadID = table.Column<int>(nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_MessageThreadParticipant", x => x.MessageThreadParticipantID);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "User",
-                columns: table => new
-                {
-                    Id = table.Column<int>(nullable: false)
-                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
-                    AccessFailedCount = table.Column<int>(nullable: false),
-                    ConcurrencyStamp = table.Column<string>(nullable: true),
-                    CountryID = table.Column<int>(nullable: false),
-                    DateOfBirth = table.Column<string>(nullable: false),
-                    DateRegistered = table.Column<string>(nullable: false),
-                    Email = table.Column<string>(maxLength: 256, nullable: false),
-                    EmailConfirmed = table.Column<bool>(nullable: false),
-                    FacebookID = table.Column<string>(nullable: true),
-                    Gender = table.Column<string>(nullable: false),
-                    IsDeleted = table.Column<int>(nullable: false),
-                    LockoutEnabled = table.Column<bool>(nullable: false),
-                    LockoutEnd = table.Column<DateTimeOffset>(nullable: true),
-                    Name = table.Column<string>(nullable: false),
-                    NormalizedEmail = table.Column<string>(maxLength: 256, nullable: true),
-                    NormalizedUserName = table.Column<string>(maxLength: 256, nullable: true),
-                    Password = table.Column<string>(nullable: false),
-                    PasswordHash = table.Column<string>(nullable: true),
-                    PasswordSalt = table.Column<string>(nullable: true),
-                    PhoneNumber = table.Column<string>(nullable: true),
-                    PhoneNumberConfirmed = table.Column<bool>(nullable: false),
-                    ProfileImage = table.Column<string>(nullable: true),
-                    SecurityAnswer = table.Column<string>(nullable: true),
-                    SecurityQuestion = table.Column<string>(nullable: true),
-                    SecurityStamp = table.Column<string>(nullable: true),
-                    SkypeID = table.Column<string>(nullable: true),
-                    Surname = table.Column<string>(nullable: false),
-                    TwitterID = table.Column<string>(nullable: true),
-                    TwoFactorEnabled = table.Column<bool>(nullable: false),
-                    UserName = table.Column<string>(maxLength: 256, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_User", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -153,26 +83,114 @@ namespace HomeNetAPI.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DialingCode",
+                columns: table => new
+                {
+                    DialingCodeID = table.Column<int>(nullable: false)
+                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
+                    Code = table.Column<string>(nullable: false),
+                    CountryID = table.Column<int>(nullable: false),
+                    IsDeleted = table.Column<int>(nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DialingCode", x => x.DialingCodeID);
+                    table.ForeignKey(
+                        name: "FK_DialingCode_Country_CountryID",
+                        column: x => x.CountryID,
+                        principalTable: "Country",
+                        principalColumn: "CountryID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "User",
+                columns: table => new
+                {
+                    Id = table.Column<int>(nullable: false)
+                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
+                    AccessFailedCount = table.Column<int>(nullable: false),
+                    ConcurrencyStamp = table.Column<string>(nullable: true),
+                    CountryID = table.Column<int>(nullable: false),
+                    DateOfBirth = table.Column<string>(nullable: false),
+                    DateRegistered = table.Column<string>(nullable: false),
+                    Email = table.Column<string>(maxLength: 256, nullable: false),
+                    EmailConfirmed = table.Column<bool>(nullable: false),
+                    FacebookID = table.Column<string>(nullable: true),
+                    FirebaseMessagingToken = table.Column<string>(nullable: true),
+                    Gender = table.Column<string>(nullable: false),
+                    IsDeleted = table.Column<int>(nullable: false),
+                    LockoutEnabled = table.Column<bool>(nullable: false),
+                    LockoutEnd = table.Column<DateTimeOffset>(nullable: true),
+                    Name = table.Column<string>(nullable: false),
+                    NormalizedEmail = table.Column<string>(maxLength: 256, nullable: true),
+                    NormalizedUserName = table.Column<string>(maxLength: 256, nullable: true),
+                    Password = table.Column<string>(nullable: false),
+                    PasswordHash = table.Column<string>(nullable: true),
+                    PhoneNumber = table.Column<string>(nullable: true),
+                    PhoneNumberConfirmed = table.Column<bool>(nullable: false),
+                    ProfileImage = table.Column<string>(nullable: true),
+                    SecurityAnswer = table.Column<string>(nullable: true),
+                    SecurityQuestion = table.Column<string>(nullable: true),
+                    SecurityStamp = table.Column<string>(nullable: true),
+                    SkypeID = table.Column<string>(nullable: true),
+                    Surname = table.Column<string>(nullable: false),
+                    TwitterID = table.Column<string>(nullable: true),
+                    TwoFactorEnabled = table.Column<bool>(nullable: false),
+                    UserName = table.Column<string>(maxLength: 256, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_User", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_User_Country_CountryID",
+                        column: x => x.CountryID,
+                        principalTable: "Country",
+                        principalColumn: "CountryID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AspNetRoleClaims",
+                columns: table => new
+                {
+                    Id = table.Column<int>(nullable: false)
+                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
+                    ClaimType = table.Column<string>(nullable: true),
+                    ClaimValue = table.Column<string>(nullable: true),
+                    RoleId = table.Column<int>(nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AspNetRoleClaims", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AspNetRoleClaims_AspNetRoles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "AspNetRoles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "House",
                 columns: table => new
                 {
                     HouseID = table.Column<int>(nullable: false)
                         .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
-                    DateCreated = table.Column<string>(nullable: false),
+                    DateCreated = table.Column<string>(nullable: true),
                     Description = table.Column<string>(nullable: false),
                     HouseImage = table.Column<string>(nullable: true),
                     IsDeleted = table.Column<int>(nullable: false),
-                    Location = table.Column<string>(nullable: false),
+                    Location = table.Column<string>(nullable: true),
                     Name = table.Column<string>(nullable: false),
-                    OwnerID = table.Column<int>(nullable: false),
-                    UserId = table.Column<int>(nullable: true)
+                    UserID = table.Column<int>(nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_House", x => x.HouseID);
                     table.ForeignKey(
-                        name: "FK_House_User_UserId",
-                        column: x => x.UserId,
+                        name: "FK_House_User_UserID",
+                        column: x => x.UserID,
                         principalTable: "User",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -189,6 +207,7 @@ namespace HomeNetAPI.Migrations
                     Description = table.Column<string>(nullable: false),
                     EmailAddress = table.Column<string>(nullable: true),
                     FacebookID = table.Column<string>(nullable: true),
+                    IsDeleted = table.Column<int>(nullable: false),
                     Location = table.Column<string>(nullable: false),
                     Name = table.Column<string>(nullable: false),
                     OrganizationPhoto = table.Column<string>(nullable: true),
@@ -277,27 +296,6 @@ namespace HomeNetAPI.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "AspNetRoleClaims",
-                columns: table => new
-                {
-                    Id = table.Column<int>(nullable: false)
-                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
-                    ClaimType = table.Column<string>(nullable: true),
-                    ClaimValue = table.Column<string>(nullable: true),
-                    RoleId = table.Column<int>(nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AspNetRoleClaims", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_AspNetRoleClaims_AspNetRoles_RoleId",
-                        column: x => x.RoleId,
-                        principalTable: "AspNetRoles",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "AspNetUserRoles",
                 columns: table => new
                 {
@@ -349,6 +347,28 @@ namespace HomeNetAPI.Migrations
                         column: x => x.UserID,
                         principalTable: "User",
                         principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "HouseProfileImage",
+                columns: table => new
+                {
+                    HouseProfileImageID = table.Column<int>(nullable: false)
+                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
+                    DateAdded = table.Column<string>(nullable: false),
+                    HouseID = table.Column<int>(nullable: false),
+                    HouseImage = table.Column<string>(nullable: false),
+                    IsDeleted = table.Column<int>(nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HouseProfileImage", x => x.HouseProfileImageID);
+                    table.ForeignKey(
+                        name: "FK_HouseProfileImage_House_HouseID",
+                        column: x => x.HouseID,
+                        principalTable: "House",
+                        principalColumn: "HouseID",
                         onDelete: ReferentialAction.Restrict);
                 });
 
@@ -546,8 +566,11 @@ namespace HomeNetAPI.Migrations
                     DatePosted = table.Column<string>(nullable: false),
                     HouseMemberID = table.Column<int>(nullable: false),
                     IsDeleted = table.Column<int>(nullable: false),
-                    Location = table.Column<string>(nullable: false),
+                    IsFlagged = table.Column<int>(nullable: false),
+                    Location = table.Column<string>(nullable: true),
+                    MediaResource = table.Column<string>(nullable: true),
                     PostText = table.Column<string>(nullable: false),
+                    ResizedMediaResource = table.Column<string>(nullable: true),
                     Title = table.Column<string>(nullable: true)
                 },
                 constraints: table =>
@@ -698,7 +721,9 @@ namespace HomeNetAPI.Migrations
                     HouseMemberID = table.Column<int>(nullable: false),
                     HousePostID = table.Column<int>(nullable: false),
                     IsDeleted = table.Column<int>(nullable: false),
-                    Message = table.Column<string>(nullable: false)
+                    IsFlagged = table.Column<int>(nullable: false),
+                    Message = table.Column<string>(nullable: false),
+                    ResponseMessage = table.Column<string>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -744,6 +769,61 @@ namespace HomeNetAPI.Migrations
                         column: x => x.UserID,
                         principalTable: "User",
                         principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MessageThreadMessage",
+                columns: table => new
+                {
+                    MessageThreadMessageID = table.Column<int>(nullable: false)
+                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
+                    DateSent = table.Column<string>(nullable: false),
+                    HouseMemberID = table.Column<int>(nullable: false),
+                    Message = table.Column<string>(nullable: false),
+                    MessageThreadID = table.Column<int>(nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageThreadMessage", x => x.MessageThreadMessageID);
+                    table.ForeignKey(
+                        name: "FK_MessageThreadMessage_HouseMember_HouseMemberID",
+                        column: x => x.HouseMemberID,
+                        principalTable: "HouseMember",
+                        principalColumn: "HouseMemberID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_MessageThreadMessage_MessageThread_MessageThreadID",
+                        column: x => x.MessageThreadID,
+                        principalTable: "MessageThread",
+                        principalColumn: "MessageThreadID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MessageThreadParticipant",
+                columns: table => new
+                {
+                    MessageThreadParticipantID = table.Column<int>(nullable: false)
+                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
+                    HouseMemberID = table.Column<int>(nullable: false),
+                    IsDeleted = table.Column<int>(nullable: false),
+                    MessageThreadID = table.Column<int>(nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageThreadParticipant", x => x.MessageThreadParticipantID);
+                    table.ForeignKey(
+                        name: "FK_MessageThreadParticipant_HouseMember_HouseMemberID",
+                        column: x => x.HouseMemberID,
+                        principalTable: "HouseMember",
+                        principalColumn: "HouseMemberID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_MessageThreadParticipant_MessageThread_MessageThreadID",
+                        column: x => x.MessageThreadID,
+                        principalTable: "MessageThread",
+                        principalColumn: "MessageThreadID",
                         onDelete: ReferentialAction.Restrict);
                 });
 
@@ -878,6 +958,11 @@ namespace HomeNetAPI.Migrations
                 column: "UserID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DialingCode_CountryID",
+                table: "DialingCode",
+                column: "CountryID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_FlaggedComment_AnnouncementCommentID",
                 table: "FlaggedComment",
                 column: "AnnouncementCommentID");
@@ -918,9 +1003,9 @@ namespace HomeNetAPI.Migrations
                 column: "UserID");
 
             migrationBuilder.CreateIndex(
-                name: "IX_House_UserId",
+                name: "IX_House_UserID",
                 table: "House",
-                column: "UserId");
+                column: "UserID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_HouseAnnouncement_HouseID",
@@ -973,6 +1058,11 @@ namespace HomeNetAPI.Migrations
                 column: "UserID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_HouseProfileImage_HouseID",
+                table: "HouseProfileImage",
+                column: "HouseID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_InterHouseMail_HouseID",
                 table: "InterHouseMail",
                 column: "HouseID");
@@ -996,6 +1086,26 @@ namespace HomeNetAPI.Migrations
                 name: "IX_MessageThread_HouseMemberID",
                 table: "MessageThread",
                 column: "HouseMemberID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageThreadMessage_HouseMemberID",
+                table: "MessageThreadMessage",
+                column: "HouseMemberID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageThreadMessage_MessageThreadID",
+                table: "MessageThreadMessage",
+                column: "MessageThreadID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageThreadParticipant_HouseMemberID",
+                table: "MessageThreadParticipant",
+                column: "HouseMemberID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageThreadParticipant_MessageThreadID",
+                table: "MessageThreadParticipant",
+                column: "MessageThreadID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Organization_CategoryID",
@@ -1031,6 +1141,11 @@ namespace HomeNetAPI.Migrations
                 name: "IX_OrganizationSubscriber_UserID",
                 table: "OrganizationSubscriber",
                 column: "UserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_User_CountryID",
+                table: "User",
+                column: "CountryID");
 
             migrationBuilder.CreateIndex(
                 name: "EmailIndex",
@@ -1084,7 +1199,7 @@ namespace HomeNetAPI.Migrations
                 name: "CallLogRecepients");
 
             migrationBuilder.DropTable(
-                name: "Country");
+                name: "DialingCode");
 
             migrationBuilder.DropTable(
                 name: "FlaggedComment");
@@ -1102,13 +1217,13 @@ namespace HomeNetAPI.Migrations
                 name: "HousePostMetaData");
 
             migrationBuilder.DropTable(
+                name: "HouseProfileImage");
+
+            migrationBuilder.DropTable(
                 name: "InterHouseMessageReply");
 
             migrationBuilder.DropTable(
                 name: "Key");
-
-            migrationBuilder.DropTable(
-                name: "MessageThread");
 
             migrationBuilder.DropTable(
                 name: "MessageThreadMessage");
@@ -1153,6 +1268,9 @@ namespace HomeNetAPI.Migrations
                 name: "InterHouseMail");
 
             migrationBuilder.DropTable(
+                name: "MessageThread");
+
+            migrationBuilder.DropTable(
                 name: "OrganizationPost");
 
             migrationBuilder.DropTable(
@@ -1181,6 +1299,9 @@ namespace HomeNetAPI.Migrations
 
             migrationBuilder.DropTable(
                 name: "User");
+
+            migrationBuilder.DropTable(
+                name: "Country");
         }
     }
 }

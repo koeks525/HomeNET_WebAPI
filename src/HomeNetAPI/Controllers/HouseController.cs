@@ -95,8 +95,9 @@ namespace HomeNetAPI.Controllers
                     Description = description,
                     Location = houseLocation,
                     DateCreated = DateTime.Now.ToString(),
-                    OwnerID = selectedUser.Id,
-                    User = selectedUser
+                    UserID = selectedUser.Id,
+                    User = selectedUser,
+                    IsDeleted = 0
                 };
 
                 var createdHouse = await Task.Run(() =>
@@ -309,66 +310,55 @@ namespace HomeNetAPI.Controllers
             ListResponse<House> response = new ListResponse<House>();
             try
             {
-                if (clientCode == androidClient)
-                {
-                    if (emailAddress != null)
-                    {
-                        var user = await Task.Run(() =>
-                        {
-                            return userRepository.GetUser(emailAddress);
-                        });
-                        if (user == null)
-                        {
-                            response.DidError = true;
-                            response.Message = "No user records were found with the given email address";
-                            response.Model = null;
-                            return NotFound(response);
-                        }
-                        else
-                        {
-                            var listHouses = await Task.Run(() =>
-                            {
-                                return houseRepository.GetHouses(user.Id);
-                            });
-                            if (listHouses == null)
-                            {
-                                response.DidError = false;
-                                response.Message = "No houses were found for the linked user. Perhaps you need to register a house?";
-                                response.Model = null;
-                                return Ok(response);
-                            }
-                            else
-                            {
-                                response.DidError = false;
-                                response.Message = "We have found the following linked houses";
-                                response.Model = listHouses;
-                                return Ok(response);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        response.DidError = true;
-                        response.Message = "Please ensure you are sending through an email adress of the corresponding user";
-                        response.Model = null;
-                        return BadRequest(response);
-                    }
-                } else
+                if (androidClient != clientCode)
                 {
                     response.DidError = true;
-                    response.Message = "Please send a valid client code to the server";
+                    response.Message = "Please send valid client credentials to the server";
                     response.Model = null;
                     return BadRequest(response);
                 }
-                
+
+                if (emailAddress == "" || emailAddress == null)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send an email address to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the provided credentials";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
+                var selectedHouses = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouses(selectedUser.Id);
+                });
+                if (selectedHouses != null)
+                {
+                    response.DidError = false;
+                    response.Model = selectedHouses;
+                    response.Message = "Here are houses linked to the selected user";
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "No houses were found for the selected user";
+                    response.Model = null;
+                    return NotFound(response);
+                }
             } catch (Exception error)
             {
                 response.DidError = true;
-                response.Message = error.Message;
+                response.Message = error.StackTrace + "\n" + error.Message;
                 response.Model = null;
                 return BadRequest(response);
             }
-           
         }
 
         [HttpGet] 
@@ -537,7 +527,7 @@ namespace HomeNetAPI.Controllers
                     return NotFound(response);
                 }
 
-                if (selectedHouse.OwnerID == selectedUser.Id)
+                if (selectedHouse.UserID == selectedUser.Id)
                 {
                     response.DidError = true;
                     response.Message = "You are the administrator of the house. You cannot join as a member of the house";
@@ -557,7 +547,7 @@ namespace HomeNetAPI.Controllers
                         }
                     }
                 }
-                var administrator = await userManager.FindByIdAsync(Convert.ToString(selectedHouse.OwnerID));
+                var administrator = await userManager.FindByIdAsync(Convert.ToString(selectedHouse.UserID));
                 HouseMember member = new HouseMember();
                 var joinHouseTask = await Task.Run(() =>
                 {

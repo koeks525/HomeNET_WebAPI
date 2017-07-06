@@ -8,8 +8,8 @@ using HomeNetAPI.Repository;
 namespace HomeNetAPI.Migrations
 {
     [DbContext(typeof(HomeNetContext))]
-    [Migration("20170503170436_FifthMigration")]
-    partial class FifthMigration
+    [Migration("20170704162020_JulyMigration")]
+    partial class JulyMigration
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -109,6 +109,25 @@ namespace HomeNetAPI.Migrations
                     b.HasKey("CountryID");
 
                     b.ToTable("Country");
+                });
+
+            modelBuilder.Entity("HomeNetAPI.Models.DialingCode", b =>
+                {
+                    b.Property<int>("DialingCodeID")
+                        .ValueGeneratedOnAdd();
+
+                    b.Property<string>("Code")
+                        .IsRequired();
+
+                    b.Property<int>("CountryID");
+
+                    b.Property<int>("IsDeleted");
+
+                    b.HasKey("DialingCodeID");
+
+                    b.HasIndex("CountryID");
+
+                    b.ToTable("DialingCode");
                 });
 
             modelBuilder.Entity("HomeNetAPI.Models.FlaggedComment", b =>
@@ -242,8 +261,7 @@ namespace HomeNetAPI.Migrations
                     b.Property<int>("HouseID")
                         .ValueGeneratedOnAdd();
 
-                    b.Property<string>("DateCreated")
-                        .IsRequired();
+                    b.Property<string>("DateCreated");
 
                     b.Property<string>("Description")
                         .IsRequired();
@@ -252,19 +270,16 @@ namespace HomeNetAPI.Migrations
 
                     b.Property<int>("IsDeleted");
 
-                    b.Property<string>("Location")
-                        .IsRequired();
+                    b.Property<string>("Location");
 
                     b.Property<string>("Name")
                         .IsRequired();
 
-                    b.Property<int>("OwnerID");
-
-                    b.Property<int?>("UserId");
+                    b.Property<int>("UserID");
 
                     b.HasKey("HouseID");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserID");
 
                     b.ToTable("House");
                 });
@@ -367,11 +382,16 @@ namespace HomeNetAPI.Migrations
 
                     b.Property<int>("IsDeleted");
 
-                    b.Property<string>("Location")
-                        .IsRequired();
+                    b.Property<int>("IsFlagged");
+
+                    b.Property<string>("Location");
+
+                    b.Property<string>("MediaResource");
 
                     b.Property<string>("PostText")
                         .IsRequired();
+
+                    b.Property<string>("ResizedMediaResource");
 
                     b.Property<string>("Title");
 
@@ -396,8 +416,12 @@ namespace HomeNetAPI.Migrations
 
                     b.Property<int>("IsDeleted");
 
+                    b.Property<int>("IsFlagged");
+
                     b.Property<string>("Message")
                         .IsRequired();
+
+                    b.Property<string>("ResponseMessage");
 
                     b.HasKey("HousePostFlagID");
 
@@ -573,6 +597,10 @@ namespace HomeNetAPI.Migrations
 
                     b.HasKey("MessageThreadMessageID");
 
+                    b.HasIndex("HouseMemberID");
+
+                    b.HasIndex("MessageThreadID");
+
                     b.ToTable("MessageThreadMessage");
                 });
 
@@ -588,6 +616,10 @@ namespace HomeNetAPI.Migrations
                     b.Property<int>("MessageThreadID");
 
                     b.HasKey("MessageThreadParticipantID");
+
+                    b.HasIndex("HouseMemberID");
+
+                    b.HasIndex("MessageThreadID");
 
                     b.ToTable("MessageThreadParticipant");
                 });
@@ -608,6 +640,8 @@ namespace HomeNetAPI.Migrations
                     b.Property<string>("EmailAddress");
 
                     b.Property<string>("FacebookID");
+
+                    b.Property<int>("IsDeleted");
 
                     b.Property<string>("Location")
                         .IsRequired();
@@ -736,6 +770,8 @@ namespace HomeNetAPI.Migrations
 
                     b.Property<string>("FacebookID");
 
+                    b.Property<string>("FirebaseMessagingToken");
+
                     b.Property<string>("Gender")
                         .IsRequired();
 
@@ -758,8 +794,6 @@ namespace HomeNetAPI.Migrations
                         .IsRequired();
 
                     b.Property<string>("PasswordHash");
-
-                    b.Property<string>("PasswordSalt");
 
                     b.Property<string>("PhoneNumber");
 
@@ -787,6 +821,8 @@ namespace HomeNetAPI.Migrations
                         .HasMaxLength(256);
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CountryID");
 
                     b.HasIndex("NormalizedEmail")
                         .HasName("EmailIndex");
@@ -948,6 +984,13 @@ namespace HomeNetAPI.Migrations
                         .HasForeignKey("UserID");
                 });
 
+            modelBuilder.Entity("HomeNetAPI.Models.DialingCode", b =>
+                {
+                    b.HasOne("HomeNetAPI.Models.Country", "Country")
+                        .WithMany("DialingCodes")
+                        .HasForeignKey("CountryID");
+                });
+
             modelBuilder.Entity("HomeNetAPI.Models.FlaggedComment", b =>
                 {
                     b.HasOne("HomeNetAPI.Models.AnnouncementComment", "AnnouncementComment")
@@ -999,7 +1042,7 @@ namespace HomeNetAPI.Migrations
                 {
                     b.HasOne("HomeNetAPI.Models.User", "User")
                         .WithMany("Houses")
-                        .HasForeignKey("UserId");
+                        .HasForeignKey("UserID");
                 });
 
             modelBuilder.Entity("HomeNetAPI.Models.HouseAnnouncement", b =>
@@ -1096,6 +1139,28 @@ namespace HomeNetAPI.Migrations
                         .HasForeignKey("HouseMemberID");
                 });
 
+            modelBuilder.Entity("HomeNetAPI.Models.MessageThreadMessage", b =>
+                {
+                    b.HasOne("HomeNetAPI.Models.HouseMember", "HouseMember")
+                        .WithMany()
+                        .HasForeignKey("HouseMemberID");
+
+                    b.HasOne("HomeNetAPI.Models.MessageThread", "MessageThread")
+                        .WithMany()
+                        .HasForeignKey("MessageThreadID");
+                });
+
+            modelBuilder.Entity("HomeNetAPI.Models.MessageThreadParticipant", b =>
+                {
+                    b.HasOne("HomeNetAPI.Models.HouseMember", "HouseMember")
+                        .WithMany()
+                        .HasForeignKey("HouseMemberID");
+
+                    b.HasOne("HomeNetAPI.Models.MessageThread", "MessageThread")
+                        .WithMany()
+                        .HasForeignKey("MessageThreadID");
+                });
+
             modelBuilder.Entity("HomeNetAPI.Models.Organization", b =>
                 {
                     b.HasOne("HomeNetAPI.Models.Category", "Category")
@@ -1134,6 +1199,13 @@ namespace HomeNetAPI.Migrations
                     b.HasOne("HomeNetAPI.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserID");
+                });
+
+            modelBuilder.Entity("HomeNetAPI.Models.User", b =>
+                {
+                    b.HasOne("HomeNetAPI.Models.Country", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryID");
                 });
 
             modelBuilder.Entity("HomeNetAPI.Models.UserCallLog", b =>
