@@ -21,6 +21,10 @@ namespace HomeNetAPI.Models
         public string DateCreated { get; set; }
         [Required]
         public int IsDeleted { get; set; }
+
+        public int IsPrivate { get; set; }
+
+        public int OneTimePin { get; set; }
         
         public User User { get; set; }
 

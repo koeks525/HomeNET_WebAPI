@@ -13,10 +13,10 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
-using MimeKit;
 using MailKit.Net.Smtp;
-
-
+using System.Collections.Generic;
+using MailKit;
+using MimeKit;
 
 namespace HomeNetAPI.Controllers
 {
@@ -35,8 +35,9 @@ namespace HomeNetAPI.Controllers
         private String mailPassword = "Okuhle*1994";
         private IHouseRepository houseRepository;
         private IHouseMemberRepository houseMemberRepository;
+        private IHousePostRepository housePostRepository;
 
-        public UserController(IUserRepository userRepository, IMapper mapper, ICryptography crypto, UserManager<User> userManager, SignInManager<User> signInManager, IPasswordHasher<User> passwordHasher, IHouseRepository houseRepository, IHouseMemberRepository houseMemberRepository)
+        public UserController(IUserRepository userRepository, IMapper mapper, ICryptography crypto, UserManager<User> userManager, SignInManager<User> signInManager, IPasswordHasher<User> passwordHasher, IHouseRepository houseRepository, IHouseMemberRepository houseMemberRepository, IHousePostRepository housePostRepository)
         {
             this.houseMemberRepository = houseMemberRepository;
             this.userRepository = userRepository;
@@ -46,6 +47,7 @@ namespace HomeNetAPI.Controllers
             this.signInManager = signInManager;
             this.passwordHasher = passwordHasher;
             this.houseRepository = houseRepository;
+            this.housePostRepository = housePostRepository;
         }
 
         [HttpPost]
@@ -523,42 +525,76 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetHousePosts([FromQuery] int userId, [FromQuery] String clientCode)
+        ///Get all house posts for all houses a user may be subscribed to. 
+        public async Task<IActionResult> GetHousePosts([FromQuery] string emailAddress, [FromQuery] String clientCode)
         {
             ListResponse<HousePost> response = new ListResponse<HousePost>();
             try
             {
-                if (clientCode == androidClient)
+                if (clientCode != androidClient)
                 {
-                    var results = await Task.Run(() =>
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the selected credentials";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
+                var subscribedHouses = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(selectedUser.Id);
+                });
+                if (subscribedHouses == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No subscriptions to houses were found for the selected user. Please consider joining a house, or creating a house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                List<HousePost> housePostList = new List<HousePost>();
+
+                foreach (HouseMember membership in subscribedHouses)
+                {
+                    var result = await Task.Run(() =>
                     {
-                        return userRepository.GetHousePosts(userId);
+                        return housePostRepository.GetHousePosts(membership.HouseID);
                     });
-                    if (results != null)
+                    if (result != null)
                     {
-                        response.DidError = false;
-                        response.Message = "Here are list of posts by the specified user";
-                        response.Model = results;
-                        return Ok(response);
-                    } else
-                    {
-                        response.DidError = true;
-                        response.Message = "No posts were found for the specified user";
-                        response.Model = null;
-                        return NotFound(response);
+                        foreach (HousePost post in result)
+                        {
+                            housePostList.Add(post);
+                        }
+                        result = null;
                     }
+                }
+
+                if (housePostList.Count > 0)
+                {
+                    response.DidError = false;
+                    response.Message = "Here are found houses";
+                    response.Model = housePostList;
+                    return Ok(response);
                 } else
                 {
                     response.DidError = true;
-                    response.Message = "Please send a valid client code to the server";
+                    response.Message = "No house posts were found in all houses the user may be subscribed to";
                     response.Model = null;
-                    return BadRequest(response);
+                    return NotFound(response);
                 }
             }
             catch (Exception error)
             {
                 response.DidError = true;
-                response.Message = error.Message;
+                response.Message = error.Message + "\n"+error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
           }

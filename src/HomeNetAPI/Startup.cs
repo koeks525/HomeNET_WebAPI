@@ -119,7 +119,7 @@ namespace HomeNetAPI
             app.UseStaticFiles();
             
             app.UseSwagger();
-            app.UseSwaggerUi(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "HomeNet API v1"));
+            app.UseSwaggerUi(c => c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "HomeNet API v1"));
             //DBInitializer.Initialize(context);
             app.UseMvc();
         }
