@@ -7,6 +7,7 @@ namespace HomeNetAPI.Models
     {
         [Key,Required]
         public int HousePostID { get; set; }
+
         public string Title { get; set; }
         [Required]
         public string PostText { get; set; }

@@ -89,204 +89,142 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpPost]
-        //A user may pass a photo or video - see how to handle this
-        public async Task<IActionResult> AddHousePost([FromQuery] int houseID, [FromForm] String title, [FromForm] String postText, [FromForm] String datePosted, [FromForm] String location, [FromQuery] String clientCode, [FromForm] IFormFile file, [FromForm] String userEmailAddress)
+        ///Add a new photo for a selected user in a selected house. 
+        public async Task<IActionResult> AddHousePost([FromQuery] int houseID, [FromForm] String emailAddress, [FromForm] String postText, [FromForm] String location, [FromQuery] String clientCode, [FromForm] IFormFile file)
         {
             SingleResponse<HousePost> response = new SingleResponse<HousePost>();
-            if (clientCode == androidClient)
+            try
             {
-                try
-                {
-                    if (postText != null && userEmailAddress != null)
-                    {
-                        var user = await userManager.FindByEmailAsync(userEmailAddress);
-                        if (user != null)
-                        {
-                            HousePost housePost = new HousePost()
-                            {
-                                HousePostID = 0,
-                                Title = title,
-                                PostText = postText,
-                                DatePosted = DateTime.Now.ToString(),
-                                Location = location
-
-                            };
-
-                            var selectedHouse = await Task.Run(() =>
-                            {
-                                return houseRepository.GetHouse(houseID);
-                            });
-
-                            if (selectedHouse == null)
-                            {
-                                response.DidError = true;
-                                response.Message = "No house was found with the supplied house information";
-                                response.Model = null;
-                                return NotFound(response);
-                            }
-
-                            List<HouseMember> houseMemberships = await Task.Run(() =>
-                            {
-                                return houseMemberRepository.GetHouseMember(user.Id);
-                            });
-
-                            if (houseMemberships == null)
-                            {
-                                response.DidError = true;
-                                response.Message = "You are not registered for any houses. Please register for a house, and try again";
-                                response.Model = null;
-                                return NotFound(response);
-                            }
-
-                            foreach (HouseMember membership in houseMemberships)
-                            {
-                                if (membership.HouseID == selectedHouse.HouseID)
-                                {
-                                    housePost.HouseMember = membership;
-                                    housePost.HouseMemberID = membership.HouseMemberID;
-                                }
-                            }
-
-                            if (housePost.HouseMember == null)
-                            {
-                                response.DidError = true;
-                                response.Message = "You are not subscribed to the selected house. Please try again";
-                                response.Model = null;
-                                return NotFound(response);
-                            }
-
-                            if (file != null)
-                            {
-                                //Check the file and then upload - if it is a picture it must be jpg or png
-                                if (file.Length > 2.5e+7)
-                                {
-                                    response.DidError = true;
-                                    response.Message = "The uploaded file (picture or video) cannot be greater than 10MB. Please try another file";
-                                    response.Model = null;
-                                    response.Model = housePost;
-                                    return BadRequest(response);
-                                }
-
-                                if (file.ContentType != "image/jpeg" || file.ContentType != "video/*")
-                                {
-                                    response.DidError = true;
-                                    response.Message = "HomeNET only accepts images and/or videos less than 25MB";
-                                    response.Model = housePost;
-                                    return BadRequest(response);
-                                }
-
-                                String directory = $"C:/HomeNET/Houses/{selectedHouse.HouseID}/";
-                                if (!Directory.Exists(directory))
-                                {
-                                    Directory.CreateDirectory(directory);
-                                }
-
-                                String finalDestination = directory + file.FileName;
-                                using (var stream = new FileStream(finalDestination, FileMode.Create, FileAccess.ReadWrite))
-                                {
-                                    await file.CopyToAsync(stream);
-                                    housePost.MediaResource = finalDestination;
-
-                                }
-                                    if (file.ContentType == "image/jpeg")
-                                    {
-                                        SKBitmap bitmap = SKBitmap.Decode(finalDestination);
-                                        String resizedLocation = imageProcessor.ResizeImage(bitmap, finalDestination, file.FileName);
-                                        housePost.ResizedMediaResource = resizedLocation;
-                                        var postResult = await Task.Run(() =>
-                                       {
-                                           return housePostRepository.AddHousePost(housePost);
-                                       });
-                                        if (postResult != null)
-                                        {
-                                            response.DidError = false;
-                                            response.Message = "House Post and Image saved successfully!";
-                                            response.Model = postResult;
-                                            return Ok(response);
-                                        } else
-                                        {
-                                            response.DidError = true;
-                                            response.Message = "Something went wrong with saving the post and image data. Please try again";
-                                            System.IO.File.Delete(finalDestination);
-                                            System.IO.File.Delete(resizedLocation);
-                                            housePost.MediaResource = "";
-                                            housePost.ResizedMediaResource = "";
-                                            response.Model = housePost;
-                                            return BadRequest(response);
-                                        }
-
-                                    }
-
-                                    var finalResult = await Task.Run(() =>
-                                    {
-                                        return housePostRepository.AddHousePost(housePost);
-                                    });
-                                    if (finalResult != null)
-                                    {
-                                        response.DidError = false;
-                                        response.Message = "House Post and media saved successfully!";
-                                        response.Model = finalResult;
-                                        return Ok(response);
-                                    } else
-                                    {
-                                        response.DidError = true;
-                                        System.IO.File.Delete(finalDestination); //Delete the file
-                                        response.Message = "House post and media could not be saved!";
-                                        response.Model = finalResult;
-                                        return BadRequest(response);
-                                    }
-
-                                
-
-                            } else
-                            {
-                                var finalResult = await Task.Run(() =>
-                                {
-                                    return housePostRepository.AddHousePost(housePost);
-                                });
-                                if (finalResult != null)
-                                {
-                                    response.DidError = false;
-                                    response.Message = "Your post has been saved! ";
-                                    response.Model = finalResult;
-                                    return Ok(response);
-                                } else
-                                {
-                                    response.DidError = true;
-                                    response.Message = "Something went wrong with saving the post. Please try again";
-                                    response.Model = housePost;
-                                    return BadRequest(response);
-                                }
-                            }
-                        } else
-                        {
-                            response.DidError = true;
-                            response.Message = "No user was found with the given email address. Please check again";
-                            response.Model = null;
-                            return NotFound(response);
-                        }
-
-                    } else
-                    {
-                        response.DidError = true;
-                        response.Message = "Please provide a post text is required";
-                        response.Model = null;
-                        return BadRequest(response);
-                    }
-                } catch (Exception error)
+                if (androidClient != clientCode)
                 {
                     response.DidError = true;
-                    response.Message = error.Message;
+                    response.Message = "Please send valid client credentials to the server";
                     response.Model = null;
                     return BadRequest(response);
                 }
-            } else
+
+                if (postText == null)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid post data to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the supplied data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse ==  null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the given ID";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
+                HousePost newPost = new HousePost();
+                newPost.PostText = postText;
+                newPost.DatePosted = DateTime.Now.ToString();
+                if (location != null)
+                {
+                    newPost.Location = location;
+                }
+                //UserID and HouseID must align.
+                var houseMembership = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetMembership(selectedHouse.HouseID, selectedUser.Id);
+                });
+                if (houseMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The selected user does not appear to have a membership with the house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                newPost.HouseMemberID = houseMembership.HouseMemberID;
+                newPost.IsDeleted = 0;
+                newPost.IsFlagged = 0;
+                if (location != null)
+                {
+                    newPost.Location = location;
+                }
+                if (file != null)
+                {//Add a new image 
+                    String finalFileName = "";
+                    String directory = $"C:/HomeNET/Houses/{selectedHouse.HouseID}/Posts";
+                    if (file.FileName.Contains(":"))
+                    {
+                        finalFileName = file.FileName.Replace(":", "_");
+                    } else
+                    {
+                        finalFileName = file.FileName;
+                    }
+                    if (!Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+                    using (var fileStream = new FileStream(directory + "/"+finalFileName, FileMode.Create, FileAccess.ReadWrite))
+                    {
+                        await file.CopyToAsync(fileStream);
+                        var result = await Task.Run(() =>
+                        {
+                            return housePostRepository.AddHousePost(newPost);
+
+                        });
+                        if (result != null)
+                        {
+                            response.DidError = false;
+                            response.Model = result;
+                            response.Message = "New post created successfully!";
+                            return Ok(response);
+                        } else
+                        {
+                            response.DidError = true;
+                            response.Message = "Error Adding new Post";
+                            response.Model = null;
+                            return BadRequest(response);
+                        }
+                    }
+
+                } else
+                {
+                    var addResult = await Task.Run(() =>
+                    {
+                        return housePostRepository.AddHousePost(newPost);
+                    });
+                    if (addResult != null)
+                    {
+                        response.DidError = false;
+                        response.Message = "New post added successfully!";
+                        response.Model = addResult;
+                        return Ok(response);
+                    } else
+                    {
+                        response.DidError = false;
+                        response.Message = "Error adding house post. Please try again";
+                        response.Model = null;
+                        return BadRequest(response);
+                    }
+                }
+
+            } catch (Exception error)
             {
                 response.DidError = true;
-                response.Message = "Please provide valid client credentials to the server";
+                response.Message = error.Message + "\n" + error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
             }
+            
         }
 
         [HttpDelete]

@@ -127,5 +127,11 @@ namespace HomeNetAPI.Repository
             var memberships = dbContext.HouseMembers.Where(i => i.HouseID == houseID && i.IsDeleted == 0).ToList();
             return memberships;
         }
+
+        public HouseMember GetMembership(int houseID, int userID)
+        {
+            var membership = dbContext.HouseMembers.First(i => i.UserID == userID && i.HouseID == houseID);
+            return membership;
+        }
     }
 }
