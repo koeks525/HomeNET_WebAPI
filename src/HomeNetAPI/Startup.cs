@@ -50,6 +50,7 @@ namespace HomeNetAPI
             services.AddTransient<IHouseMemberRepository, HouseMemberRepository>();
             services.AddTransient<IAnnouncementRepository, AnnouncementRepository>();
             services.AddTransient<IHousePostMetaDataRepository, HousePostMetaDataRepository>();
+            services.AddTransient<IFlaggedPostRepository, FlaggedPostsRepository>();
             services.AddTransient<ICryptography, Cryptography>();
             services.AddTransient<IImageProcessor, ImageProcessor>();
             services.AddTransient<IMailMessage, MailMessage>();

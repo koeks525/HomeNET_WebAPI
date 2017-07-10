@@ -13,6 +13,6 @@ namespace HomeNetAPI.Repository
         HousePost DeleteHousePost(int housePostID);
         HousePost FlagHousePost(HousePostFlag flaggedPost);
         HousePost GetHousePost(int housePostID);
-
+        HousePost UpdateHousePost(HousePost selectedHousePost);
     }
 }

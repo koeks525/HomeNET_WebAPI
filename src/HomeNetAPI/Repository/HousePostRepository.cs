@@ -58,5 +58,25 @@ namespace HomeNetAPI.Repository
         {
             return homeNetContext.HousePosts.First(i => i.HousePostID == housePostID);
         }
+
+        public HousePost UpdateHousePost(HousePost updatePost)
+        {
+            var result = homeNetContext.HousePosts.First(i => i.HousePostID == updatePost.HousePostID);
+            if (result != null)
+            {
+                result.IsDeleted = updatePost.IsDeleted;
+                result.IsFlagged = updatePost.IsFlagged;
+                result.Location = updatePost.Location;
+                result.MediaResource = updatePost.MediaResource;
+                result.PostText = updatePost.PostText;
+                result.DatePosted = updatePost.DatePosted;
+                homeNetContext.HousePosts.Update(result);
+                homeNetContext.SaveChanges();
+                return result;
+            } else
+            {
+                return null;
+            }
+        }
     }
 }
