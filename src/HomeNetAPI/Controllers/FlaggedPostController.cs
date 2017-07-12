@@ -111,5 +111,108 @@ namespace HomeNetAPI.Controllers
                 return BadRequest(response);
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetBannedHousePosts([FromQuery] int houseID, [FromQuery] String clientCode)
+        {
+            ListResponse<HousePostFlag> response = new ListResponse<HousePostFlag>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the given credentials";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var bannedPostData = await Task.Run(() =>
+                {
+                    return flaggedPostRepository.GetFlaggedPosts(houseID);
+                });
+                if (bannedPostData == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No flagged posts were found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "Here are the following banned posts data";
+                    response.Model = bannedPostData;
+                    return Ok(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetHousePendingPosts([FromQuery] int houseID, [FromQuery] String clientCode)
+        {
+            ListResponse<HousePostFlag> response = new ListResponse<HousePostFlag>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the provided data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var pendingPostData = await Task.Run(() =>
+                {
+                    return flaggedPostRepository.GetPendingPosts(houseID);
+                });
+                if (pendingPostData == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No pending posts were found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "Found flagged posts for the selected house";
+                    response.Model = pendingPostData;
+                    return Ok(response);
+                }
+
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
     }
 }

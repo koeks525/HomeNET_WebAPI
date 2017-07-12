@@ -12,5 +12,6 @@ namespace HomeNetAPI.Repository
         HousePostFlag FlagHousePost(HousePostFlag newFlag);
         HousePostFlag ApproveFlag(HousePostFlag newFlag);
         HousePostFlag RemoveFlag(HousePostFlag newFlag);
+        List<HousePostFlag> GetPendingPosts(int houseID);
     }
 }

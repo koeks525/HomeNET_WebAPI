@@ -39,11 +39,63 @@ namespace HomeNetAPI.Repository
             return result.Entity;
         }
 
-        public List<HousePostFlag> GetFlaggedPosts(int housePostID)
+        public List<HousePostFlag> GetFlaggedPosts(int houseID)
         {
-            var result = dbContext.FlaggedHousePosts.Where(i => i.HousePostID == housePostID).ToList();
-            return result;
+            var houseMembers = dbContext.HouseMembers.Where(i => i.HouseID == houseID).ToList();
+            List<HousePostFlag> housePostList = new List<HousePostFlag>();
+            if (houseMembers != null)
+            {
+                foreach (HouseMember member in houseMembers)
+                {
+                    var housePosts = dbContext.FlaggedHousePosts.Where(i => member.HouseMemberID == member.HouseMemberID && i.IsFlagged == 1).ToList();
+                    if (housePosts != null)
+                    {
+                        foreach (HousePostFlag flaggedPost in housePosts)
+                        {
+                            housePostList.Add(flaggedPost);
+                        }
+                    }
+                }
+
+                return housePostList;
+            } else
+            {
+                return null;
+            }
+            
+            
         }
+
+        public List<HousePostFlag> GetPendingPosts(int houseID)
+        {
+            var houseMembers = dbContext.HouseMembers.Where(i => i.HouseID == houseID).ToList();
+            List<HousePostFlag> flaggedPostList = new List<HousePostFlag>();
+            if (houseMembers !=null) {
+                foreach (HouseMember member in houseMembers)
+                {
+                    var postList = dbContext.FlaggedHousePosts.Where(i => i.HouseMemberID == member.HouseMemberID && i.IsFlagged == 0).ToList();
+                    if (postList != null)
+                    {
+                        foreach (HousePostFlag post in postList)
+                        {
+                            flaggedPostList.Add(post);
+                        }
+                    }
+                }
+                if (flaggedPostList.Count > 0)
+                {
+                    return flaggedPostList;
+                } else
+                {
+                    return null;
+                }
+
+
+            } else
+            {
+                return null;
+            }
+        } 
 
         public HousePostFlag RemoveFlag(HousePostFlag newFlag)
         {
