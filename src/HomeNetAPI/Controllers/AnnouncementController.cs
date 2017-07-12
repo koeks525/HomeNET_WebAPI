@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Identity;
 namespace HomeNetAPI.Controllers
 {
     [Authorize]
+    [Route("/[controller]/[action]")]
     public class AnnouncementController : Controller 
     {
         private IAnnouncementRepository announcementRepository;
@@ -20,13 +21,15 @@ namespace HomeNetAPI.Controllers
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
         private IHouseRepository houseRepository;
         private UserManager<User> userManager;
+        private IHouseMemberRepository memberRepository;
 
-        public AnnouncementController(IAnnouncementRepository announcementRepository, IFirebaseMessagingService messagingService, IHouseRepository houseRepository, UserManager<User> userManager)
+        public AnnouncementController(IAnnouncementRepository announcementRepository, IFirebaseMessagingService messagingService, IHouseRepository houseRepository, UserManager<User> userManager, IHouseMemberRepository memberRepository)
         {
             this.announcementRepository = announcementRepository;
             this.messagingService = messagingService;
             this.houseRepository = houseRepository;
             this.userManager = userManager;
+            this.memberRepository = memberRepository;
         }
 
         [HttpGet]
@@ -129,6 +132,97 @@ namespace HomeNetAPI.Controllers
                 return BadRequest(response);
             }
         }
+
+        [HttpPost] 
+        public async Task<IActionResult> CreateAnnouncement([FromBody] String title, [FromBody] String message, [FromQuery] int houseID, [FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            SingleResponse<HouseAnnouncement> response = new SingleResponse<HouseAnnouncement>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                if (title == null || message == null)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send a title and message contents for your announcement";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedUser = await Task.Run(() =>
+                {
+                    return userManager.FindByEmailAsync(emailAddress);
+                });
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the given credentials";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the given credentials";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedMembership = await Task.Run(() =>
+                {
+                    return memberRepository.GetHouseMember(selectedUser.Id, selectedHouse.HouseID);
+                });
+                if (selectedMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "You are not subscribed to the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var newAnnouncement = new HouseAnnouncement();
+                newAnnouncement.IsDeleted = 0;
+                newAnnouncement.Title = title.Trim();
+                newAnnouncement.Message = message;
+                newAnnouncement.HouseID = selectedHouse.HouseID;
+                newAnnouncement.HouseMemberID = selectedMembership.HouseMemberID;
+                newAnnouncement.DateAdded = DateTime.Now.ToString();
+                newAnnouncement.HouseAnnouncementID = 0;
+                var addResult = await Task.Run(() =>
+                {
+                    return announcementRepository.AddHouseAnnouncement(newAnnouncement);
+                });
+                if (addResult == null)
+                {
+                    response.DidError = true;
+                    response.Message = "Something went wrong with adding the new announcement";
+                    response.Model = null;
+                    return BadRequest(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "Announcement added successfully";
+                    response.Model = newAnnouncement;
+                    return Ok(response);
+                }
+
+
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        
 
     }
 }

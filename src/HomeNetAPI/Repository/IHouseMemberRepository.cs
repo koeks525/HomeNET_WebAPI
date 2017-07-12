@@ -21,6 +21,7 @@ namespace HomeNetAPI.Repository
         HouseMember UpdateMembership(HouseMember selectedMembership);
         List<HouseMember> GetHouseMemberships(int houseID);
         HouseMember GetMembership(int houseID, int userID);
+        HouseMember GetHouseMember(int userID, int houseID);
         
     }
 }

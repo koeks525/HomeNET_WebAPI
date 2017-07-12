@@ -7,7 +7,8 @@ namespace HomeNetAPI.Models
     {
         [Key, Required]
         public int AnnouncementCommentID { get; set; }
-        public string Title { get; set; }
+        [ForeignKey("HouseMemberID")]
+        public int HouseMemberID { get; set; }
         [Required]
         public string Comment { get; set; }
         [Required]
@@ -19,6 +20,7 @@ namespace HomeNetAPI.Models
         [ForeignKey("HouseAnnouncementID")]
         public int HouseAnnouncementID { get; set; }
         public HouseAnnouncement HouseAnnouncement { get; set; }
+        public HouseMember HouseMember { get; set; }
 
     }
 }

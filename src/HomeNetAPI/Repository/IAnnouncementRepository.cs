@@ -10,5 +10,7 @@ namespace HomeNetAPI.Repository
     {
         List<HouseAnnouncement> GetUserAnnoucements(int userID);
         List<HouseAnnouncement> GetHouseAnnouncements(int houseID);
+        HouseAnnouncement AddHouseAnnouncement(HouseAnnouncement newAnnouncement);
+        HouseAnnouncement GetHouseAnnouncement(int houseAnnouncementID);
     }
 }

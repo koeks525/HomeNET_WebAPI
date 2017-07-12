@@ -21,6 +21,7 @@ namespace HomeNetAPI.Models
         public int HouseMemberID { get; set; }
         public House House { get; set; }
         public HouseMember HouseMember { get; set; }
+        
 
     }
 }

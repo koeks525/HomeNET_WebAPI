@@ -25,5 +25,18 @@ namespace HomeNetAPI.Repository
             var announcements = homeContext.HouseAnnouncements.Where(i => i.HouseMemberID == houseMemberID && i.IsDeleted == 0).ToList();
             return announcements;
         }
+
+        public HouseAnnouncement AddHouseAnnouncement(HouseAnnouncement newAnnouncement)
+        {
+            var result = homeContext.HouseAnnouncements.Add(newAnnouncement);
+            homeContext.SaveChanges();
+            return result.Entity;
+        }
+
+        public HouseAnnouncement GetHouseAnnouncement(int houseAnnouncementID)
+        {
+            var result = homeContext.HouseAnnouncements.First(i => i.HouseAnnouncementID == houseAnnouncementID);
+            return result;
+        }
     }
 }

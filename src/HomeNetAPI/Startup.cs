@@ -37,7 +37,7 @@ namespace HomeNetAPI
             services.AddMvc(
                 //options => options.Filters.Add(new RequireHttpsAttribute())
                 );
-            services.AddSwaggerGen(c => c.SwaggerDoc("v1", new Swashbuckle.AspNetCore.Swagger.Info { Title = "HomeNET API", Version = "v1.31", Contact = new Swashbuckle.AspNetCore.Swagger.Contact { Name = "Okuhle Ngada", Email = "okuhle.ngada@outlook.com", Url = "http://www.homenet.net.za" }, Description = "HomeNET API for data communication. These calls are consumed by the Android client." }));
+            services.AddSwaggerGen(c => c.SwaggerDoc("v1", new Swashbuckle.AspNetCore.Swagger.Info { Title = "HomeNET API", Version = "v1.72", Contact = new Swashbuckle.AspNetCore.Swagger.Contact { Name = "Okuhle Ngada", Email = "okuhle.ngada@outlook.com", Url = "http://www.homenet.net.za" }, Description = "HomeNET API for data communication. These calls are consumed by the Android client." }));
             services.AddDbContext<HomeNetContext>(options => options.UseSqlServer(Configuration.GetConnectionString("HomeNetDatabase")));   
             services.AddTransient<IUserRepository, UserRepository>();
             services.AddTransient<ICountryRepository, CountryRepository>();
@@ -50,6 +50,7 @@ namespace HomeNetAPI
             services.AddTransient<IHouseMemberRepository, HouseMemberRepository>();
             services.AddTransient<IAnnouncementRepository, AnnouncementRepository>();
             services.AddTransient<IHousePostMetaDataRepository, HousePostMetaDataRepository>();
+            services.AddTransient<IAnnouncementCommentRepository, AnnouncementCommentRepository>();
             services.AddTransient<IFlaggedPostRepository, FlaggedPostsRepository>();
             services.AddTransient<ICryptography, Cryptography>();
             services.AddTransient<IImageProcessor, ImageProcessor>();
