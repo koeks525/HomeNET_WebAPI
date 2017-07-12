@@ -113,7 +113,7 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetBannedHousePosts([FromQuery] int houseID, [FromQuery] String clientCode)
+        public async Task<IActionResult> GetFlaggedHousePosts([FromQuery] int houseID, [FromQuery] String clientCode)
         {
             ListResponse<HousePostFlag> response = new ListResponse<HousePostFlag>();
             try
