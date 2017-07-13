@@ -125,40 +125,40 @@ namespace HomeNetAPI.Controllers
                 }
 
                 //Source: https://stackoverflow.com/questions/26741191/ioexception-the-process-cannot-access-the-file-file-path-because-it-is-being 
-                using (var fileStream = new FileStream(directory+"/"+newFileName, FileMode.Create, FileAccess.ReadWrite))
+                using (var fileStream = new FileStream(directory + "/" + newFileName, FileMode.Create, FileAccess.ReadWrite))
                 {
                     await imageFile.CopyToAsync(fileStream);
                     createdHouse.HouseImage = directory + "/" + newFileName;
                 }
 
 
-                    var finalResult = await Task.Run(() =>
+                var finalResult = await Task.Run(() =>
+                {
+                    return houseRepository.UpdateHouse(createdHouse);
+                });
+                if (finalResult != null)
+                {
+                    response.DidError = false;
+                    response.Message = $"House {houseName} has been created successfully!";
+                    response.Model = finalResult;
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "Something went wrong with creating the house. ";
+                    response.Model = createdHouse;
+                    var remove = await Task.Run(() =>
                     {
-                        return houseRepository.UpdateHouse(createdHouse);
+                        return houseRepository.DeleteHouse(createdHouse.HouseID);
                     });
-                    if (finalResult != null)
+                    if (remove != null)
                     {
-                        response.DidError = false;
-                        response.Message = $"House {houseName} has been created successfully!";
-                        response.Model = finalResult;
-                        return Ok(response);
-                    } else
-                    {
-                        response.DidError = false;
-                        response.Message = "Something went wrong with creating the house. ";
-                        response.Model = createdHouse;
-                        var remove = await Task.Run(() =>
-                        {
-                            return houseRepository.DeleteHouse(createdHouse.HouseID);
-                        });
-                        if (remove !=null)
-                        {
-                            response.Message += "Changes made have been rolled back";
-                            return BadRequest(response);
-                        }
+                        response.Message += "Changes made have been rolled back";
                         return BadRequest(response);
                     }
-                
+                    return BadRequest(response);
+                }
+
 
 
             } catch (Exception error)
@@ -170,140 +170,163 @@ namespace HomeNetAPI.Controllers
             }
         }
 
-        [HttpPut]
-        public async Task<IActionResult> UpdateHouse([FromBody] House updateHouse, [FromQuery] string clientCode, [FromBody] IFormFile imageFile)
+        [HttpPost]
+        public async Task<IActionResult> UpdateHouse([FromQuery] int houseID, [FromForm] String houseName, [FromForm]String houseDescription, [FromForm] String emailAddress, [FromForm] int isPrivate, [FromForm] String oneTimePin, [FromForm] IFormFile imageFile, [FromQuery] String clientCode)
         {
             SingleResponse<House> response = new SingleResponse<House>();
-
             try
             {
-                if (ModelState.IsValid)
+                if (clientCode != androidClient)
                 {
-                    if (clientCode == androidClient)
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the provided credentials";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the supplied credentials";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (selectedHouse.UserID != selectedUser.Id)
+                {
+                    response.DidError = true;
+                    response.Model = null;
+                    response.Message = "You are not the administrator of the house. Only the house admin can modify house settings";
+                    return BadRequest(response);
+                }
+                if (selectedHouse.HouseImage == null && imageFile == null)
+                {
+                    response.DidError = true;
+                    response.Message = "Your house was created without a profile picture. Please add a picture to the house";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                if (imageFile == null)
+                {
+                    House updateHouse = new House();
+                    updateHouse.HouseID = selectedHouse.HouseID;
+                    updateHouse.Description = houseDescription.Trim();
+                    updateHouse.Name = houseName;
+                    updateHouse.IsPrivate = isPrivate;
+                    if (oneTimePin != null)
                     {
-                        var houseToUpdate = await Task.Run(() => { return houseRepository.GetHouse(updateHouse.HouseID); });
-                        if (houseToUpdate != null)
-                        {
-                            houseToUpdate.Name = updateHouse.Name;
-                            houseToUpdate.Description = updateHouse.Description;
-                            houseToUpdate.Location = updateHouse.Location;
-                            if (imageFile != null)
-                            {
-                                String houseDirectory = $"HomeNET/Houses/{houseToUpdate.HouseID}";
-                                if (!Directory.Exists(houseDirectory))
-                                {
-                                    Directory.CreateDirectory(houseDirectory);
-                                }
+                        updateHouse.OneTimePin = oneTimePin;
+                    }
+                    updateHouse.IsDeleted = 0;
+                    updateHouse.HouseImage = selectedHouse.HouseImage;
+                    updateHouse.DateCreated = selectedHouse.DateCreated;
 
-                                FileInfo fileInfo = new FileInfo(imageFile.FileName);
-                                if (fileInfo.Length > 1e+7)
-                                {
-                                    response.DidError = true;
-                                    response.Message = "The uploaded file cannot be greater tha 10MB in size. Please try another file";
-                                    response.Model = updateHouse;
-                                    return BadRequest(response);
-                                }
-                                if (fileInfo.Extension != "jpg" || fileInfo.Extension != "png")
-                                {
-                                    response.DidError = true;
-                                    response.Message = "Only pictures should be uploaded. Only jpg or png files are accepted by the server";
-                                    response.Model = updateHouse;
-                                    return BadRequest(response);
-                                }
-
-                                //We are changing profile pictures... add the past image into the past photo gallery.
-                                if (updateHouse.HouseImage != null)
-                                {
-                                    var profileImage = new HouseProfileImage()
-                                    {
-                                        HouseID = updateHouse.HouseID,
-                                        HouseImage = updateHouse.HouseImage,
-                                        HouseProfileImageID = 0,
-                                        DateAdded = DateTime.Now.ToString(),
-                                        IsDeleted = 0
-                                    };
-                                    var result = await Task.Run(() =>
-                                    {
-                                        return profileRepository.AddHouseProfileImage(profileImage);
-                                    });
-
-                                    String fileName = imageFile.Name + "." + fileInfo.Extension;
-                                    String fileLocation = Path.Combine(houseDirectory, fileName);
-                                    houseToUpdate.HouseImage = fileLocation;
-                                    using (var stream = new FileStream(fileLocation, FileMode.Create, FileAccess.ReadWrite))
-                                    {
-                                        await imageFile.CopyToAsync(stream);
-                                        int width, height, size = 512;
-                                        var copiedFile = new SKManagedStream(stream);
-                                        var fileToBeProcessed = SKBitmap.Decode(copiedFile);
-                                        if (fileToBeProcessed.Width > fileToBeProcessed.Height)
-                                        {
-                                            width = size;
-                                            height = fileToBeProcessed.Height * size / fileToBeProcessed.Width;
-                                        } else
-                                        {
-                                            width = fileToBeProcessed.Width * size / fileToBeProcessed.Height;
-                                            height = size;
-                                        }
-                                        var resizedFile = fileToBeProcessed.Resize(new SKImageInfo(width, height), SKBitmapResizeMethod.Lanczos3);
-                                        if (resizedFile != null)
-                                        {
-                                           //Copy the file to the server
-                                        }
-
-                                        houseToUpdate.HouseImage = fileLocation;
-                                        var finalUpdateResult = await Task.Run(() => { return houseRepository.UpdateHouse(houseToUpdate); });
-                                        if (finalUpdateResult != null)
-                                        {
-                                            response.DidError = false;
-                                            response.Message = "House has been updated successfully! House Image has been updated successfully!";
-                                            response.Model = finalUpdateResult;
-                                            return Ok(response);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            var updateResult = await Task.Run(() => { return houseRepository.UpdateHouse(houseToUpdate); });
-                            if (updateResult != null)
-                            {
-                                response.DidError = false;
-                                response.Message = $"House {updateHouse.Name} has been updated successfully!";
-                                response.Model = updateResult;
-                                return Ok(response);
-                            }
-                            return Ok(); //Fix this later
-                        }
+                    var updateHouseTask = await Task.Run(() =>
+                    {
+                        return houseRepository.UpdateHouse(updateHouse);
+                    });
+                    if (updateHouseTask == null)
+                    {
+                        response.DidError = true;
+                        response.Message = "An error occurred updating the house. Please try again";
+                        response.Model = null;
+                        BadRequest(response);
                     }
                     else
                     {
                         response.DidError = true;
-                        response.Message = "No matching house was found with the provided details";
-                        response.Model = updateHouse;
-                        return NotFound(response);
+                        response.Message = "House update successfully!";
+                        response.Model = updateHouseTask;
+                        return Ok(response);
                     }
                 }
                 else
                 {
-                    response.DidError = true;
-                    response.Message = "Please send a valid client code to the server";
-                    response.Model = updateHouse;
-                    return BadRequest(response);
+                    String oldFileLocation = selectedHouse.HouseImage;
+                    String directory = $"C:/HomeNET/Houses/{selectedHouse.HouseID}";
+                    if (!Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+                    String fileName = imageFile.FileName;
+                    if (fileName.Contains(":"))
+                    {
+                        fileName = fileName.Replace(":", "_");
+                    }
+                    if (imageFile.Length > 1e+7)
+                    {
+                        response.DidError = true;
+                        response.Message = "Uploaded file cannot be larger than 10MB";
+                        response.Model = null;
+                        return BadRequest(response);
+                    }
+                    if (imageFile.ContentType != "image/jpeg")
+                    {
+                        response.DidError = true;
+                        response.Message = "Only image files are accepted at this point. ";
+                        response.Model = null;
+                        return BadRequest(response);
+                    }
 
-
+                    using (var fileStream = new FileStream(directory + "/" + fileName, FileMode.Create, FileAccess.ReadWrite))
+                    {
+                        await imageFile.CopyToAsync(fileStream);
+                        House finalHouse = new House();
+                        finalHouse.HouseID = selectedHouse.HouseID;
+                        finalHouse.Description = houseDescription;
+                        finalHouse.Name = houseName;
+                        finalHouse.IsDeleted = 0;
+                        finalHouse.IsPrivate = isPrivate;
+                        finalHouse.HouseImage = directory + "/" + fileName;
+                        if (oneTimePin != null)
+                        {
+                            finalHouse.OneTimePin = oneTimePin;
+                        }
+                        var updateHouseTask = await Task.Run(() =>
+                        {
+                            return houseRepository.UpdateHouse(finalHouse);
+                        });
+                        if (updateHouseTask == null)
+                        {
+                            response.DidError = true;
+                            response.Message = "Error updating the selected house. Please try again";
+                            response.Model = null;
+                            return BadRequest(response);
+                        }
+                        else
+                        {
+                            response.DidError = false;
+                            response.Message = "House updated successfully!";
+                            response.Model = null;
+                            return Ok(response);
+                        }
+                    }
+                    
                 }
-             } catch(Exception error)
+            }
+             catch (Exception error)
             {
                 response.DidError = true;
-                response.Message = error.Message;
+                response.Message = error.Message + "\n" + error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
             }
-            return BadRequest();
 
+            return BadRequest(response);
         }
+    
+        
         [HttpGet]
         public async Task<IActionResult> GetHouses([FromQuery] string emailAddress, [FromQuery] string clientCode)
         {

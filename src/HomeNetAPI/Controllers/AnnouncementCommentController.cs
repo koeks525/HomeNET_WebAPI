@@ -30,8 +30,6 @@ namespace HomeNetAPI.Controllers
             this.commentRepository = commentRepository;
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> CreateAnnouncementComment([FromForm] int houseID, [FromForm] int houseAnnouncementID, [FromForm] String comment, [FromForm] String emailAddress, [FromQuery] String clientCode)
         {

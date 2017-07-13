@@ -24,7 +24,7 @@ namespace HomeNetAPI.Models
 
         public int IsPrivate { get; set; }
 
-        public int OneTimePin { get; set; }
+        public string OneTimePin { get; set; }
         
         public User User { get; set; }
 
