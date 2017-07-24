@@ -14,9 +14,7 @@ namespace HomeNetAPI.Models
         [Required]
         public string Description { get; set; }       
         //reference to the house profile picture
-        public string HouseImage { get; set; }
-        
-        public string Location { get; set; } //Store GPS data which will get resolved to a country name, city, etc. 
+        public string HouseImage { get; set; } 
         
         public string DateCreated { get; set; }
         [Required]

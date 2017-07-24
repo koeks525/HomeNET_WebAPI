@@ -41,7 +41,6 @@ namespace HomeNetAPI.Repository
             {
                 HouseID = updateHouse.HouseID,
                 Description = updateHouse.Description,
-                Location = updateHouse.Location,
                 DateCreated = updateHouse.DateCreated,
                 HouseImage = updateHouse.HouseImage,
                 IsDeleted = updateHouse.IsDeleted,

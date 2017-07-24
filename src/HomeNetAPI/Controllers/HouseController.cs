@@ -42,7 +42,7 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateHouse([FromForm] string houseName, [FromForm] string description, [FromForm] string houseLocation, [FromForm] string emailAddress, [FromQuery] string clientCode, [FromForm] IFormFile imageFile)
+        public async Task<IActionResult> CreateHouse([FromForm] string houseName, [FromForm] string description, [FromForm] string emailAddress, [FromQuery] string clientCode, [FromForm] IFormFile imageFile)
         {
             SingleResponse<House> response = new SingleResponse<House>();
             try
@@ -93,7 +93,6 @@ namespace HomeNetAPI.Controllers
                     HouseID = 0,
                     Name = houseName,
                     Description = description,
-                    Location = houseLocation,
                     DateCreated = DateTime.Now.ToString(),
                     UserID = selectedUser.Id,
                     User = selectedUser,
@@ -590,8 +589,8 @@ namespace HomeNetAPI.Controllers
                 {
                     String message = $"Hi {administrator.UserName}\n\nOn the {DateTime.Now.ToString()}, a new user requested to join your house. As the system administrator, you have the option of approving the request or denying the request. For your convenience, here are some basic details to the user: \n\nUsername: {selectedUser.UserName}\nEmail Address: {selectedUser.Email}\nName: {selectedUser.Name}\n\nIf you have not received the push notification on your device, please login to the mobile app and deal with the request.\n\nRegards,\nHomeNET Administratative Services";
                     String toUser = $"Hi {selectedUser.Name},\n\nThank you for taking interest in {selectedHouse.Name}. The administrator has received your join request, and will be attending to this shortly.\nRegards,\nHomeNET Administrative Services";
-                    bool sentToAdmin = mailService.SendMailMessage(administrator.Email, administrator.Name, $"{selectedHouse.Name}: New Join Request", message);
-                    bool sentToUser = mailService.SendMailMessage(selectedUser.Email, selectedUser.Name, $"{selectedHouse.Name}: New Join Request Received", toUser);
+                    bool sentToAdmin = mailService.SendMailMessage(administrator.Name, administrator.Email, $"{selectedHouse.Name}: New Join Request", message);
+                    bool sentToUser = mailService.SendMailMessage(selectedUser.Name, selectedUser.Email, $"{selectedHouse.Name}: New Join Request Received", toUser);
                     if (administrator.FirebaseMessagingToken != null)
                     {
                         bool sent = await firebaseService.SendFirebaseMessage($"{selectedHouse.Name}: New User Join Request", $"{selectedUser.Name} has requested to join your house. Please attend to this", administrator.FirebaseMessagingToken, firebaseToken);

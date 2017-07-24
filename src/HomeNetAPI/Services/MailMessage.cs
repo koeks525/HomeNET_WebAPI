@@ -21,9 +21,10 @@ namespace HomeNetAPI.Services
             };
             var emailClient = new SmtpClient();
             emailClient.Connect("mail.koeksworld.com", 465, true);
-            emailClient.Authenticate("okuhle.ngada@koeksowrld.com", "Okuhle*1994");
+            emailClient.Authenticate("okuhle.ngada@koeksworld.com", "Okuhle*1994");
             emailClient.AuthenticationMechanisms.Remove("XOAUTH2");
             emailClient.Send(email);
+            emailClient.Disconnect(true);
             return true;
         }
     }
