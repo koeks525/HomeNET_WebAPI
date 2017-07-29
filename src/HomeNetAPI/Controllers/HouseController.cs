@@ -11,6 +11,7 @@ using SkiaSharp;
 using HomeNetAPI.Services;
 using HomeNetAPI.ViewModels;
 using MimeKit;
+using System.Collections.Generic;
 
 namespace HomeNetAPI.Controllers
 {
@@ -622,6 +623,72 @@ namespace HomeNetAPI.Controllers
                 return BadRequest(response);
             }
 
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> GetSubscribedHouses([FromForm] String emailAddress, [FromQuery] String clientCode)
+        {
+            ListResponse<House> response = new ListResponse<House>();
+            try
+            {
+                List<House> houseList = new List<House>();
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the provided information";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var houseMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(selectedUser.Id);
+                });
+                if (houseMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No memberships were found for the selected user. Please try joining a house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach(HouseMember member in houseMemberships)
+                {
+                    var house = await Task.Run(() =>
+                    {
+                        return houseRepository.GetHouse(member.HouseID);
+                    });
+                    if (house != null)
+                    {
+                        houseList.Add(house);
+                    }
+                }
+                if (houseList.Count > 0)
+                {
+                    response.DidError = false;
+                    response.Message = "Herewith the subscribed houses";
+                    response.Model = houseList;
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "No houses found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
         }
 
         
