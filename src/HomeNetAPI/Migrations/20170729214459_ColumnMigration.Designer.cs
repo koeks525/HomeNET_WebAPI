@@ -8,9 +8,10 @@ using HomeNetAPI.Repository;
 namespace HomeNetAPI.Migrations
 {
     [DbContext(typeof(HomeNetContext))]
-    partial class HomeNetContextModelSnapshot : ModelSnapshot
+    [Migration("20170729214459_ColumnMigration")]
+    partial class ColumnMigration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
             modelBuilder
                 .HasAnnotation("ProductVersion", "1.1.1")

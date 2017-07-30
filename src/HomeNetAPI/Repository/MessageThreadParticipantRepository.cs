@@ -6,7 +6,7 @@ using HomeNetAPI.Models;
 
 namespace HomeNetAPI.Repository
 {
-    public class MessageThreadParticipantRepository : IMessageThreadRepository
+    public class MessageThreadParticipantRepository : IMessageThreadParticipantRepository
     {
         private HomeNetContext dbContext;
 
@@ -14,30 +14,33 @@ namespace HomeNetAPI.Repository
         {
             this.dbContext = dbContext;
         }
+
+        public MessageThreadParticipant AddParticipant(MessageThreadParticipant newParticipant)
+        {
+            throw new NotImplementedException();
+        }
+
         public MessageThread CreateMessageThread(MessageThread newMessage)
         {
-            var thread = dbContext.MessageThreads.Add(newMessage);
-            dbContext.SaveChanges();
-            if (thread != null)
-            {
-                return thread.Entity;
-            } else
-            {
-                return null;
-            }
+            throw new NotImplementedException();
         }
 
         public List<MessageThread> GetHouseMessages(int houseID)
         {
-            var house = dbContext.Houses.First(i => i.HouseID == houseID);
-            if (house == null)
-            {
-                return null;
-            }
-            var houseMembers = dbContext.MessageThreads.Where(i => i.HouseMemberID == house.HouseID);
+            throw new NotImplementedException();
+        }
+
+        public List<HouseMember> GetMessageParticipants(int messageThreadID)
+        {
+            throw new NotImplementedException();
         }
 
         public MessageThread RemoveMessageThread(MessageThread oldThread)
+        {
+            throw new NotImplementedException();
+        }
+
+        public MessageThreadParticipant RemoveParticipant(int messageThreadParticipantID)
         {
             throw new NotImplementedException();
         }

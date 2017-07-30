@@ -13,6 +13,7 @@ namespace HomeNetAPI.Models
         public int Priority { get; set; }
         [ForeignKey("HouseMemberID")]
         public int HouseMemberID { get; set; }
+        public int IsDeleted { get; set; } = 0;
         public HouseMember HouseMember { get; set; }
 
     }
