@@ -13,6 +13,7 @@ using HomeNetAPI.Services;
 namespace HomeNetAPI.Controllers
 {
     [Authorize]
+    [Route("/[controller]/[action]")]
     public class MessagesController : Controller
     {
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
@@ -300,18 +301,25 @@ namespace HomeNetAPI.Controllers
                     return participantRepository.GetMessageParticipants(newTask.MessageThreadID);
                 });
 
-                foreach (HouseMember participant in participants)
+                foreach (MessageThreadParticipant participant in participants)
                 {
-                    var foundUser = await userManager.FindByIdAsync(Convert.ToString(participant.UserID));
-                    if (foundUser != null)
+                    var membership = await Task.Run(() =>
                     {
-                        participantList.Add(foundUser);
+                        return houseMemberRepository.GetHouseMembership(participant.HouseMemberID);
+                    });
+                    if (membership != null)
+                    {
+                        var foundUser = await userManager.FindByIdAsync(Convert.ToString(membership.UserID));
+                        if (foundUser != null)
+                        {
+                            participantList.Add(foundUser);
+                        }
                     }
                 }
-                if (participantList == null)
+                if (participantList.Count <= 0)
                 {
                     response.DidError = true;
-                    response.Message = "No participants were found for the selected thread";
+                    response.Message = "No participants were found in this list";
                     response.Model = null;
                     return NotFound(response);
                 }
@@ -327,6 +335,257 @@ namespace HomeNetAPI.Controllers
                 response.Message = "Message has been added!";
                 response.Model = newMessage;
                 return Ok(response);
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMessageParticipants([FromQuery] int messageThreadID, [FromQuery] String clientCode)
+        {
+            ListResponse<ParticipantViewModel> response = new ListResponse<ParticipantViewModel>();
+            List<User> userList = new List<User>();
+            List<ParticipantViewModel> modelList = new List<ParticipantViewModel>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedMessageThread = await Task.Run(() =>
+                {
+                    return messageThreadRepository.GetMessageThread(messageThreadID);
+                });
+                if (selectedMessageThread == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No message thread was found with the provided data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var participantList = await Task.Run(() =>
+                {
+                    return participantRepository.GetMessageParticipants(selectedMessageThread.MessageThreadID);
+                });
+                if (participantList == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No participants were found";
+                    response.Model = null;
+                    return NotFound();
+                }
+                foreach (MessageThreadParticipant participant in participantList)
+                {
+                    var selectedUser = await Task.Run(() =>
+                    {
+                        return houseMemberRepository.GetHouseMembership(participant.HouseMemberID);
+                    });
+                    if (selectedUser == null)
+                    {
+                        break;
+                    }
+                    var foundUser = await userManager.FindByIdAsync(Convert.ToString(selectedUser.UserID));
+                    if (foundUser == null)
+                    {
+                        break;
+                    }
+                    ParticipantViewModel model = new ParticipantViewModel()
+                    {
+                        EmailAddress = foundUser.Email,
+                        Name = foundUser.Name,
+                        Surname = foundUser.Surname,
+                        HouseMemberID = selectedUser.HouseMemberID,
+                        IsDeleted = 0,
+                        MessageThreadID = selectedMessageThread.MessageThreadID,
+                        MessageThreadParticipantID = participant.MessageThreadParticipantID,
+                        UserID = foundUser.Id
+                    };
+                    modelList.Add(model);
+                    
+                }
+                if (participantList.Count <= 0)
+                {
+                    response.DidError = true;
+                    response.Message = "No participant data was found";
+                    response.Model = null;
+                    return NotFound(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "Here are users that were found";
+                    response.Model = modelList;
+                    return Ok(response);
+                }
+
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+                
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMessagesInThread([FromQuery] int messageThreadID, [FromQuery] String clientCode)
+        {
+            ListResponse<MessagesViewModel> response = new ListResponse<MessagesViewModel>();
+            List<MessagesViewModel> messageList = new List<MessagesViewModel>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedMessageThread = await Task.Run(() =>
+                {
+                    return messageThreadRepository.GetMessageThread(messageThreadID);
+                });
+                if (selectedMessageThread == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No message threads were found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var messages = await Task.Run(() =>
+                {
+                    return messageThreadMessageRepository.GetThreadMessages(selectedMessageThread.MessageThreadID);
+                });
+                if (messages == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No messages were foud for the thread";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (MessageThreadMessage item in messages)
+                {
+                    var houseMember = await Task.Run(() =>
+                    {
+                        return houseMemberRepository.GetHouseMembership(item.HouseMemberID);
+                    });
+                    if (houseMember == null)
+                    {
+                        break;
+                    }
+                    var selectedUser = await userManager.FindByIdAsync(Convert.ToString(houseMember.UserID));
+                    if (selectedUser == null)
+                    {
+                        break;
+                    }
+
+                    MessagesViewModel model = new MessagesViewModel()
+                    {
+                        DateSent = item.DateSent,
+                        EmailAddress = selectedUser.Email,
+                        HouseMemberID = houseMember.HouseMemberID,
+                        Message = item.Message,
+                        MessageThreadID = selectedMessageThread.MessageThreadID,
+                        Name = selectedUser.Name,
+                        Surname = selectedUser.Surname,
+                        MessageThreadMessageID = item.MessageThreadMessageID
+                    };
+                    messageList.Add(model);
+                }
+                if (messageList.Count <= 0)
+                {
+                    response.DidError = true;
+                    response.Message = "No messages were found in this list";
+                    response.Model = null;
+                    return NotFound(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "Here are messages for this thread";
+                    response.Model = messageList;
+                    return Ok(response);
+                }
+
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet] 
+        public async Task<IActionResult> GetMessageThread([FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            ListResponse<MessageThread> response = new ListResponse<MessageThread>();
+            List<MessageThread> messageList = new List<MessageThread>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user record found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var houseMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(selectedUser.Id);
+                });
+                if (houseMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house memberships have been found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (HouseMember item in houseMemberships)
+                {
+                    var messageThreads = await Task.Run(() =>
+                    {
+                        return messageThreadRepository.GetMessageThreadForMembership(item.HouseMemberID);
+                    });
+                    if (messageThreads == null)
+                    {
+                        continue;
+                    } else
+                    {
+                        foreach (MessageThread thread in messageThreads)
+                        {
+                            messageList.Add(thread);
+                        }
+                    }
+                }
+                if (messageList.Count <= 0)
+                {
+                    response.DidError = true;
+                    response.Message = "No message threads were found for the selected user";
+                    response.Model = null;
+                    return NotFound(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "Here are the threads";
+                    response.Model = messageList;
+                    return Ok(response);
+                }
+                
             } catch (Exception error)
             {
                 response.DidError = true;

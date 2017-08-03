@@ -20,29 +20,24 @@ namespace HomeNetAPI.Repository
             throw new NotImplementedException();
         }
 
-        public MessageThread CreateMessageThread(MessageThread newMessage)
+        public List<MessageThreadParticipant> GetMessageParticipants(int messageThreadID)
         {
-            throw new NotImplementedException();
-        }
-
-        public List<MessageThread> GetHouseMessages(int houseID)
-        {
-            throw new NotImplementedException();
-        }
-
-        public List<HouseMember> GetMessageParticipants(int messageThreadID)
-        {
-            throw new NotImplementedException();
-        }
-
-        public MessageThread RemoveMessageThread(MessageThread oldThread)
-        {
-            throw new NotImplementedException();
+            var results = dbContext.MessageThreadParticipants.Where(i => i.MessageThreadID == messageThreadID).ToList();
+            return results;
         }
 
         public MessageThreadParticipant RemoveParticipant(int messageThreadParticipantID)
         {
-            throw new NotImplementedException();
+            var selectedParticipant = dbContext.MessageThreadParticipants.First(i => i.MessageThreadParticipantID == messageThreadParticipantID);
+            if (selectedParticipant != null)
+            {
+                dbContext.MessageThreadParticipants.Remove(selectedParticipant);
+                dbContext.SaveChanges();
+                return selectedParticipant;
+            } else
+            {
+                return null;
+            }
         }
     }
 }

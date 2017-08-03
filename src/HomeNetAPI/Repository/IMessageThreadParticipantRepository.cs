@@ -8,8 +8,9 @@ namespace HomeNetAPI.Repository
 {
     public interface IMessageThreadParticipantRepository
     {
-        List<HouseMember> GetMessageParticipants(int messageThreadID);
+        List<MessageThreadParticipant> GetMessageParticipants(int messageThreadID);
         MessageThreadParticipant AddParticipant(MessageThreadParticipant newParticipant);
         MessageThreadParticipant RemoveParticipant(int messageThreadParticipantID);
+        
     }
 }

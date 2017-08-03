@@ -11,5 +11,7 @@ namespace HomeNetAPI.Repository
         List<MessageThread> GetHouseMessages(int houseID);
         MessageThread CreateMessageThread(MessageThread newMessage);
         MessageThread RemoveMessageThread(MessageThread oldThread);
+        MessageThread GetMessageThread(int messageThreadID);
+        List<MessageThread> GetMessageThreadForMembership(int houseMemberID);
     }
 }

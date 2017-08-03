@@ -49,5 +49,17 @@ namespace HomeNetAPI.Repository
                 return null;
             }
         }
+
+        public MessageThread GetMessageThread(int messageThreadID)
+        {
+            var result = dbContext.MessageThreads.First(i => i.MessageThreadID == messageThreadID);
+            return result;
+        }
+
+        public List<MessageThread> GetMessageThreadForMembership(int houseMemberID)
+        {
+            var result = dbContext.MessageThreads.Where(i => i.HouseMemberID == houseMemberID).ToList();
+            return result;
+        }
     }
 }
