@@ -691,6 +691,72 @@ namespace HomeNetAPI.Controllers
             }
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> GetUsersInHouse([FromQuery] int houseID, [FromQuery] String clientCode)
+        {
+            ListResponse<UserViewModel> response = new ListResponse<UserViewModel>();
+            List<UserViewModel> userList = new List<UserViewModel>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
+                var houseMembers = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMemberships(houseID);
+                });
+                if (houseMembers == null)
+                {
+                    response.DidError = true;
+                    response.Model = null;
+                    response.Message = "No house members were found for the selected house";
+                    return NotFound(response);
+                }
+                foreach (HouseMember member in houseMembers)
+                {
+                    var foundUser = await userManager.FindByIdAsync(Convert.ToString(member.UserID));
+                    if (foundUser != null)
+                    {
+                        UserViewModel model = new UserViewModel()
+                        {
+                            EmailAddress = foundUser.Email,
+                            Name = foundUser.Name,
+                            Surname = foundUser.Surname,
+                            UserID = foundUser.Id,
+                            UserName = foundUser.UserName,
+                            ProfilePicture = foundUser.ProfileImage
+                        };
+                        userList.Add(model);
+                    }
+                }
+                if (userList.Count > 0)
+                {
+                    response.DidError = false;
+                    response.Model = userList;
+                    response.Message = "Found users";
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "No users were found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
         
     }
 }

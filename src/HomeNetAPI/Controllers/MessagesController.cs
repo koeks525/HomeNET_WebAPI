@@ -433,7 +433,6 @@ namespace HomeNetAPI.Controllers
             }
                 
         }
-
         [HttpGet]
         public async Task<IActionResult> GetMessagesInThread([FromQuery] int messageThreadID, [FromQuery] String clientCode)
         {
