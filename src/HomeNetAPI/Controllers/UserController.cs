@@ -741,6 +741,59 @@ namespace HomeNetAPI.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> UpdateUser([FromBody] User updateUser, [FromQuery] String clientCode)
+        {
+            SingleResponse<User> response = new SingleResponse<Models.User>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedUser = await userManager.FindByEmailAsync(updateUser.Email);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the supplied email address";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                selectedUser.Name = updateUser.Name;
+                selectedUser.Surname = updateUser.Surname;
+                selectedUser.SecurityQuestion = updateUser.SecurityQuestion;
+                selectedUser.SecurityAnswer = updateUser.SecurityAnswer;
+                selectedUser.FirebaseMessagingToken = updateUser.FirebaseMessagingToken;
+                var updateResult = await Task.Run(() =>
+                {
+                    return userRepository.UpdateUserAccount(selectedUser);
+                });
+                if (updateResult == null)
+                {
+                    response.DidError = true;
+                    response.Model = null;
+                    response.Message = "Failed to update the selected user. Please try again";
+                    return BadRequest(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "Update was successfull";
+                    response.Model = updateResult;
+                    return Ok(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
 
         
 

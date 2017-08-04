@@ -22,6 +22,7 @@ namespace HomeNetAPI.Controllers
         private IHouseRepository houseRepository;
         private UserManager<User> userManager;
         private IHouseMemberRepository memberRepository;
+        private String firebaseToken = "AIzaSyBhLv8gbKVzEIhtfYYSIcCRUkbS7z61qT0";
 
         public AnnouncementController(IAnnouncementRepository announcementRepository, IFirebaseMessagingService messagingService, IHouseRepository houseRepository, UserManager<User> userManager, IHouseMemberRepository memberRepository)
         {
@@ -87,7 +88,7 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetUserAnnouncements([FromQuery] int houseID, [FromQuery] String emailAddress, [FromQuery] String clientCode)
+        public async Task<IActionResult> GetUserAnnouncements([FromQuery] String emailAddress, [FromQuery] String clientCode)
         {
             ListResponse<HouseAnnouncement> response = new ListResponse<HouseAnnouncement>();
             try
@@ -134,9 +135,10 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpPost] 
-        public async Task<IActionResult> CreateAnnouncement([FromBody] String title, [FromBody] String message, [FromQuery] int houseID, [FromQuery] String emailAddress, [FromQuery] String clientCode)
+        public async Task<IActionResult> CreateAnnouncement([FromBody] NewAnnouncementViewModel model,  [FromQuery] String clientCode)
         {
             SingleResponse<HouseAnnouncement> response = new SingleResponse<HouseAnnouncement>();
+            List<User> userList = new List<Models.User>();
             try
             {
                 if (clientCode != androidClient)
@@ -146,7 +148,7 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return BadRequest(response);
                 }
-                if (title == null || message == null)
+                if (model == null)
                 {
                     response.DidError = true;
                     response.Message = "Please send a title and message contents for your announcement";
@@ -155,7 +157,7 @@ namespace HomeNetAPI.Controllers
                 }
                 var selectedUser = await Task.Run(() =>
                 {
-                    return userManager.FindByEmailAsync(emailAddress);
+                    return userManager.FindByEmailAsync(model.EmailAddress);
                 });
                 if (selectedUser == null)
                 {
@@ -166,7 +168,7 @@ namespace HomeNetAPI.Controllers
                 }
                 var selectedHouse = await Task.Run(() =>
                 {
-                    return houseRepository.GetHouse(houseID);
+                    return houseRepository.GetHouse(model.HouseID);
                 });
                 if (selectedHouse == null)
                 {
@@ -186,10 +188,40 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return NotFound(response);
                 }
+
+                var houseMembers = await Task.Run(() =>
+                {
+                    return memberRepository.GetHouseMemberships(selectedHouse.HouseID);
+                });
+
+                if (houseMembers == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The selected house has no members in it";
+                    response.Model = null;
+                    return NotFound();
+                }
+                foreach (HouseMember member in houseMembers)
+                {
+                    var user = await userManager.FindByIdAsync(Convert.ToString(member.UserID));
+                    if (user != null)
+                    {
+                        userList.Add(user);
+                    }
+                }
+
+                if (userList.Count <= 0)
+                {
+                    response.DidError = true;
+                    response.Message = "No users were found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
                 var newAnnouncement = new HouseAnnouncement();
                 newAnnouncement.IsDeleted = 0;
-                newAnnouncement.Title = title.Trim();
-                newAnnouncement.Message = message;
+                newAnnouncement.Title = model.Title.Trim();
+                newAnnouncement.Message = model.Message.Trim() ;
                 newAnnouncement.HouseID = selectedHouse.HouseID;
                 newAnnouncement.HouseMemberID = selectedMembership.HouseMemberID;
                 newAnnouncement.DateAdded = DateTime.Now.ToString();
@@ -206,6 +238,18 @@ namespace HomeNetAPI.Controllers
                     return BadRequest(response);
                 } else
                 {
+                    //remove yourself from the list
+                    var yourself = userList.First(i => i.Id == selectedUser.Id);
+                    userList.Remove(yourself);
+                    foreach (User user in userList)
+                    {
+                        var result = await Task.Run(() =>
+                        {
+                            return messagingService.SendFirebaseMessage($"{selectedHouse.Name}: New Announcement Received", $"A new announcement has been created by a house member {selectedUser.UserName}. Tap to view", user.FirebaseMessagingToken, firebaseToken);
+                        });
+                        
+                    }
+
                     response.DidError = false;
                     response.Message = "Announcement added successfully";
                     response.Model = newAnnouncement;

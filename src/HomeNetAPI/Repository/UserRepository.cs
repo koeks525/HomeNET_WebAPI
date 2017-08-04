@@ -48,8 +48,9 @@ namespace HomeNetAPI.Repository
         public User UpdateUserAccount(User updatedUser)
         {
             var updateUser = homeContext.Users.FirstOrDefault(u => u.Id == updatedUser.Id);
-            homeContext.SaveChanges();
             updateUser = updatedUser;
+            var result = homeContext.Users.Update(updateUser);
+            homeContext.SaveChanges();
             return updateUser;
 
         }
