@@ -38,5 +38,11 @@ namespace HomeNetAPI.Repository
             var result = homeContext.HouseAnnouncements.First(i => i.HouseAnnouncementID == houseAnnouncementID);
             return result;
         }
+
+        public List<HouseAnnouncement> GetAnnouncementsByMembership(int houseMemberID)
+        {
+            var results = homeContext.HouseAnnouncements.Where(i => i.HouseMemberID == houseMemberID).ToList();
+            return results;
+        }
     }
 }

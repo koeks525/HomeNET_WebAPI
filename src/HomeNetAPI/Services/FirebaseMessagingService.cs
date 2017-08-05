@@ -19,11 +19,11 @@ namespace HomeNetAPI.Services
         public async Task<bool> SendFirebaseMessage(string title, string message, string token, string key)
         {
             String link = "https://fcm.googleapis.com/fcm/send";
-            Uri firebaseUri = new Uri("link");
+            Uri firebaseUri = new Uri(link);
             HttpClient client = new HttpClient();
             client.BaseAddress = firebaseUri;
-            client.DefaultRequestHeaders.Add("Content-Type:", "application/json");
-            client.DefaultRequestHeaders.Add("Authorization:", $"key= {key}");
+            client.DefaultRequestHeaders.Add("Content-Type", "application/json");
+            client.DefaultRequestHeaders.Add("Authorization", $"key={key}");
             FirebaseMessage firebaseMessage = new FirebaseMessage();
             
             firebaseMessage.to = token;

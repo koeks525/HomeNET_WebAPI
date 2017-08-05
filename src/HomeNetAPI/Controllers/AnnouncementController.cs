@@ -23,14 +23,16 @@ namespace HomeNetAPI.Controllers
         private UserManager<User> userManager;
         private IHouseMemberRepository memberRepository;
         private String firebaseToken = "AIzaSyBhLv8gbKVzEIhtfYYSIcCRUkbS7z61qT0";
+        private IMailMessage mailService;
 
-        public AnnouncementController(IAnnouncementRepository announcementRepository, IFirebaseMessagingService messagingService, IHouseRepository houseRepository, UserManager<User> userManager, IHouseMemberRepository memberRepository)
+        public AnnouncementController(IAnnouncementRepository announcementRepository, IFirebaseMessagingService messagingService, IHouseRepository houseRepository, UserManager<User> userManager, IHouseMemberRepository memberRepository, IMailMessage mailService)
         {
             this.announcementRepository = announcementRepository;
             this.messagingService = messagingService;
             this.houseRepository = houseRepository;
             this.userManager = userManager;
             this.memberRepository = memberRepository;
+            this.mailService = mailService;
         }
 
         [HttpGet]
@@ -247,6 +249,7 @@ namespace HomeNetAPI.Controllers
                         {
                             return messagingService.SendFirebaseMessage($"{selectedHouse.Name}: New Announcement Received", $"A new announcement has been created by a house member {selectedUser.UserName}. Tap to view", user.FirebaseMessagingToken, firebaseToken);
                         });
+                        var sendEmail = mailService.SendMailMessage(user.Email, $"{user.Name} {user.Surname}", $"{selectedHouse.Name}: New Announcement Created", $"Hi, {user.Name},\n\nA new announcement was made by a user in one of the houses you are subscribed to. You should have received a push notification on your mobile device. Here are details to the new notification:\n\nAnnouncement Title: {newAnnouncement.Title}\nAnnouncement Message: {newAnnouncement.Message}\nCreated By: {selectedUser.Name} {selectedUser.Surname}\n\nPlease login to the application to view the announcement or comment. \n\nRegards,\nHomeNET Administrative Services");
                         
                     }
 
@@ -256,6 +259,95 @@ namespace HomeNetAPI.Controllers
                     return Ok(response);
                 }
 
+
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllAnnouncements([FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            ListResponse<HouseAnnouncement> response = new ListResponse<HouseAnnouncement>();
+            List<HouseAnnouncement> announcementList = new List<HouseAnnouncement>();
+            List<House> subscribedHouses = new List<House>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No valid user was found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var houseMemberships = await Task.Run(() =>
+                {
+                    return memberRepository.GetHouseMember(selectedUser.Id);
+                });
+                if (houseMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The selected user is not subscribed to any houses. Please try again";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (HouseMember membership in houseMemberships)
+                {
+                    var house = await Task.Run(() =>
+                    {
+                        return houseRepository.GetHouse(membership.HouseID);
+                    });
+                    if (house != null)
+                    {
+                        subscribedHouses.Add(house);
+                    }
+                }
+                if (subscribedHouses.Count <= 0)
+                {
+                    response.DidError = true;
+                    response.Message = "No houses found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (House thisHouse in subscribedHouses)
+                {
+                    var announcements = await Task.Run(() =>
+                    {
+                        return announcementRepository.GetHouseAnnouncements(thisHouse.HouseID);
+                    });
+                    if (announcementList != null)
+                    {
+                        foreach (HouseAnnouncement announcement in announcements)
+                        {
+                            announcementList.Add(announcement);
+                        }
+                    }
+                }
+                if (announcementList.Count > 0)
+                {
+                    response.DidError = false;
+                    response.Message = "Here are the announcements";
+                    response.Model = announcementList;
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "Error getting latest announcement list";
+                    response.Model = null;
+                    return NotFound(response);
+                }
 
             } catch (Exception error)
             {
