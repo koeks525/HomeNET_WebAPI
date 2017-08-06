@@ -8,11 +8,12 @@ namespace HomeNetAPI.Repository
 {
     public interface IHousePostRepository
     {
-        List<HousePost> GetHousePosts(int houseID);
+        List<HousePost> GetHousePosts(int houseMemberID);
         HousePost AddHousePost(HousePost newPost);
         HousePost DeleteHousePost(int housePostID);
         HousePost FlagHousePost(HousePostFlag flaggedPost);
         HousePost GetHousePost(int housePostID);
         HousePost UpdateHousePost(HousePost selectedHousePost);
+
     }
 }

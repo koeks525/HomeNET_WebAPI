@@ -123,7 +123,7 @@ namespace HomeNetAPI.Controllers
                 {
                     newFileName = imageFile.FileName.Replace(":", "_");
                 }
-
+                newFileName = GenerateRandomString() + newFileName;
                 //Source: https://stackoverflow.com/questions/26741191/ioexception-the-process-cannot-access-the-file-file-path-because-it-is-being 
                 using (var fileStream = new FileStream(directory + "/" + newFileName, FileMode.Create, FileAccess.ReadWrite))
                 {
@@ -755,6 +755,17 @@ namespace HomeNetAPI.Controllers
                 response.Model = null;
                 return BadRequest(response);
             }
+        }
+
+        private String GenerateRandomString()
+        {
+            Random random = new Random();
+            String finalString = "";
+            for (int a = 0; a < 10; a++)
+            {
+                finalString += Convert.ToString(random.Next(1, 50));
+            }
+            return finalString.Trim();
         }
 
         

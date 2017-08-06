@@ -49,9 +49,9 @@ namespace HomeNetAPI.Repository
             return null;
         }
 
-        public List<HousePost> GetHousePosts(int houseID)
+        public List<HousePost> GetHousePosts(int houseMemberID)
         {
-            return homeNetContext.HousePosts.Where(item => item.IsDeleted != 1).ToList();
+            return homeNetContext.HousePosts.Where(item => item.IsDeleted != 1 && item.HouseMemberID == houseMemberID).ToList();
         }
 
         public HousePost GetHousePost(int housePostID)

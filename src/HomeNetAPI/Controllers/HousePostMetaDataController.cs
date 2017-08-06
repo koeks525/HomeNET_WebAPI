@@ -18,11 +18,13 @@ namespace HomeNetAPI.Controllers
         private IHousePostMetaDataRepository metaDataRepository;
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
         private UserManager<User> userManager;
+        private IHousePostRepository housePostRepository;
 
-        public HousePostMetaDataController(IHousePostMetaDataRepository metaDataRepository, UserManager<User> userManager)
+        public HousePostMetaDataController(IHousePostMetaDataRepository metaDataRepository, UserManager<User> userManager, IHousePostRepository housePostRepository)
         {
             this.metaDataRepository = metaDataRepository;
             this.userManager = userManager;
+            this.housePostRepository = housePostRepository;
         }
 
         [HttpPost]
@@ -267,6 +269,78 @@ namespace HomeNetAPI.Controllers
             {
                 response.DidError = true;
                 response.Message = error.Message;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetHousePostMetrics([FromQuery] int housePostID, [FromQuery] String clientCode)
+        {
+            SingleResponse<HousePostMetaDataViewModel> response = new SingleResponse<HousePostMetaDataViewModel>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var housePost = await Task.Run(() =>
+                {
+                    return housePostRepository.GetHousePost(housePostID);
+                });
+                if (housePost == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house posts were found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
+                var metaData = await Task.Run(() =>
+                {
+                    return metaDataRepository.GetHousePostMetaData(housePost.HousePostID);
+                });
+                if (metaData == null)
+                {
+                    HousePostMetaDataViewModel model = new HousePostMetaDataViewModel();
+                    model.HousePostID = housePost.HousePostID;
+                    model.TotalDislikes = 0;
+                    model.TotalLikes = 0;
+                    response.DidError = false;
+                    response.Message = "No metric data has been found";
+                    response.Model = model;
+                    return Ok(response);
+
+                } else
+                {
+                    HousePostMetaDataViewModel model = new HousePostMetaDataViewModel();
+                    int totalLikes = 0, totalDislikes = 0;
+                    foreach (HousePostMetaData data in metaData)
+                    {
+                        if (data.Liked == 1)
+                        {
+                            totalLikes++;
+                        } else
+                        {
+                            totalDislikes++;
+                        }
+                    }
+                    model.TotalLikes = totalLikes;
+                    model.TotalDislikes = totalDislikes;
+                    response.DidError = false;
+                    response.Model = model;
+                    response.Message = "Here are metric data";
+                    return Ok(response);
+                }
+
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + " " + error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
             }
