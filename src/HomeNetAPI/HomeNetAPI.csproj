@@ -38,6 +38,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="1.0.2" />
     <PackageReference Include="Microsoft.VisualStudio.Web.BrowserLink" Version="1.0.1" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="1.0.0" />
+    <PackageReference Include="RestEase" Version="1.4.2" />
     <PackageReference Include="SkiaSharp" Version="1.58.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="1.0.0-rc1" />
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="1.1.2" />

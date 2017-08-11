@@ -19,12 +19,14 @@ namespace HomeNetAPI.Controllers
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
         private UserManager<User> userManager;
         private IHousePostRepository housePostRepository;
+        private ICommentRepository commentRepository;
 
-        public HousePostMetaDataController(IHousePostMetaDataRepository metaDataRepository, UserManager<User> userManager, IHousePostRepository housePostRepository)
+        public HousePostMetaDataController(IHousePostMetaDataRepository metaDataRepository, UserManager<User> userManager, IHousePostRepository housePostRepository, ICommentRepository commentRepository)
         {
             this.metaDataRepository = metaDataRepository;
             this.userManager = userManager;
             this.housePostRepository = housePostRepository;
+            this.commentRepository = commentRepository;
         }
 
         [HttpPost]
@@ -304,15 +306,25 @@ namespace HomeNetAPI.Controllers
                 {
                     return metaDataRepository.GetHousePostMetaData(housePost.HousePostID);
                 });
+                var comments = await Task.Run(() =>
+                {
+                    return commentRepository.GetComments(housePost.HousePostID);
+                });
+
                 if (metaData == null)
                 {
                     HousePostMetaDataViewModel model = new HousePostMetaDataViewModel();
                     model.HousePostID = housePost.HousePostID;
                     model.TotalDislikes = 0;
                     model.TotalLikes = 0;
+                    model.TotalComments = 0;
                     response.DidError = false;
                     response.Message = "No metric data has been found";
                     response.Model = model;
+                    if (comments != null)
+                    {
+                        model.TotalComments = comments.Count;
+                    }
                     return Ok(response);
 
                 } else
@@ -331,6 +343,11 @@ namespace HomeNetAPI.Controllers
                     }
                     model.TotalLikes = totalLikes;
                     model.TotalDislikes = totalDislikes;
+                    model.TotalComments = 0;
+                    if (comments != null)
+                    {
+                        model.TotalComments = comments.Count;
+                    }
                     response.DidError = false;
                     response.Model = model;
                     response.Message = "Here are metric data";

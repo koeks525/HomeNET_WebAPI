@@ -16,7 +16,7 @@ namespace HomeNetAPI.Repository
         }
         public List<HousePostMetaData> GetHousePostMetaData(int housePostID)
         {
-            var dataList = dbContext.HousePostMetaData.Where(i => i.HousePostID == housePostID && i.IsDeleted == 0).ToList();
+            var dataList = dbContext.HousePostMetaData.Where(i => i.HousePostID == housePostID).ToList();
             return dataList;
         }
 

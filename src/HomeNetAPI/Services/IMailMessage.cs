@@ -7,6 +7,6 @@ namespace HomeNetAPI.Services
 {
     public interface IMailMessage
     {
-        Boolean SendMailMessage(String destinationEmailAddress, String destinationName, String title, String message);
+        Boolean SendMailMessage(String destinationName, String destinationEmail, String title, String message);
     }
 }

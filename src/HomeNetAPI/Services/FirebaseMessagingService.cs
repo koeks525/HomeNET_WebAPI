@@ -8,11 +8,13 @@ using HomeNetAPI.ViewModels;
 using Microsoft.AspNetCore.Http.Extensions;
 using Newtonsoft.Json;
 using System.Text;
+using RestEase;
 
 namespace HomeNetAPI.Services
 {
     public class FirebaseMessagingService : IFirebaseMessagingService
     {
+
         //Source: https://stackoverflow.com/questions/37750451/send-http-post-message-in-asp-net-core-using-httpclient-postasjsonasync 
         //Source: https://firebase.google.com/docs/cloud-messaging/server 
         //Source: https://code.msdn.microsoft.com/windowsapps/How-to-use-HttpClient-to-b9289836/view/SourceCode#content 
@@ -22,8 +24,8 @@ namespace HomeNetAPI.Services
             Uri firebaseUri = new Uri(link);
             HttpClient client = new HttpClient();
             client.BaseAddress = firebaseUri;
-            client.DefaultRequestHeaders.Add("Content-Type", "application/json");
-            client.DefaultRequestHeaders.Add("Authorization", $"key={key}");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Content-Type", "application/json; charset=utf-8");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"key={key}");
             FirebaseMessage firebaseMessage = new FirebaseMessage();
             
             firebaseMessage.to = token;

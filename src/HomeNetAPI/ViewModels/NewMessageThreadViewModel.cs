@@ -13,6 +13,7 @@ namespace HomeNetAPI.ViewModels
         public String ThreadMessage { get; set; }
         public String EmailAddress { get; set; }
         public String DateSent { get; set; }
+        public String SenderEmail { get; set; }
         public List<MessageThreadParticipant> Participants { get; set; }
 
     }

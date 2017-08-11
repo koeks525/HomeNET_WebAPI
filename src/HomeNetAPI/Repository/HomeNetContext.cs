@@ -69,6 +69,8 @@ namespace HomeNetAPI.Repository
         public DbSet<Organization> Organizations { get; set; }
         //Keep track of all dialing codes for each country
         public DbSet<DialingCode> DialingCodes { get; set; }
+        //Keep track of comments
+        public DbSet<HousePostComment> HousePostComments { get; set; }
 
         protected override void OnModelCreating (ModelBuilder modelBuilder)
         {
@@ -111,6 +113,7 @@ namespace HomeNetAPI.Repository
             modelBuilder.Entity<Key>().ToTable("Key");
             modelBuilder.Entity<HouseProfileImage>().ToTable("HouseProfileImage");
             modelBuilder.Entity<DialingCode>().ToTable("DialingCode");
+            modelBuilder.Entity<HousePostComment>().ToTable("HousePostComment");
         }
     }
 }

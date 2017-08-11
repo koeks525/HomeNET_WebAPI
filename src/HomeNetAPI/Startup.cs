@@ -55,6 +55,7 @@ namespace HomeNetAPI
             services.AddTransient<IMessageThreadMessageRepository, MessageThreadMessageRepository>();
             services.AddTransient<IMessageThreadRepository, MessageThreadRepository>();
             services.AddTransient<IMessageThreadParticipantRepository, MessageThreadParticipantRepository>();
+            services.AddTransient<ICommentRepository, CommentRepository>();
             services.AddTransient<ICryptography, Cryptography>();
             services.AddTransient<IImageProcessor, ImageProcessor>();
             services.AddTransient<IMailMessage, MailMessage>();

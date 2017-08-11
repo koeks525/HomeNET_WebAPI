@@ -64,6 +64,14 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return NotFound(response);
                 }
+                var senderUser = await userManager.FindByEmailAsync(newMessage.SenderEmail);
+                if (senderUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the supplied data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
                 var selectedUser = await userManager.FindByEmailAsync(newMessage.EmailAddress);
                 if (selectedUser == null)
                 {
@@ -98,134 +106,110 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return BadRequest(response);
                 }
-                var selectedMembership = houseMemberships.First(i => i.HouseID == newMessage.HouseID);
-                if (selectedMembership == null)
+                var senderMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(senderUser.Id);
+                });
+                if (senderMemberships == null)
                 {
                     response.DidError = true;
-                    response.Message = "You are not subscribed to the selected house. Please subscribe";
+                    response.Message = "The sender is not subscribed to any houses. Please try again";
                     response.Model = null;
                     return NotFound(response);
                 }
-                if (newMessage.Participants == null)
+                var userMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(selectedUser.Id);
+                });
+                if (userMemberships == null)
                 {
                     response.DidError = true;
-                    response.Message = "Please add recepients to the list";
+                    response.Message = "The receipient is not subscribed to any houses";
                     response.Model = null;
                     return NotFound(response);
                 }
-               
-                foreach (MessageThreadParticipant participant in newMessage.Participants)
+                var userMembership = userMemberships.First(i => i.HouseID == newMessage.HouseID);
+                var senderMembership = senderMemberships.First(i => i.HouseID == newMessage.HouseID);
+                if (userMembership == null)
                 {
-                    var result = await Task.Run(() =>
-                    {
-                        return houseMemberRepository.GetHouseMembership(participant.HouseMemberID);
+                    response.DidError = true;
+                    response.Message = "No memberships found for the recepient user";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (senderMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No memberships found for the user";
+                    response.Model = null;
+                    return NotFound(response);
+                }
 
-                    });
-                    if (result != null)
-                    {
-                        recepients.Add(result);
-                    }
-                }
-                if (recepients.Count <= 0)
-                {
-                    response.DidError = true;
-                    response.Message = "Please add recepients to the list";
-                    response.Model = null;
-                    return NotFound(response);
-                }
-                foreach (HouseMember member in recepients)
-                {
-                    var result = await userManager.FindByIdAsync(Convert.ToString(member.UserID));
-                    if (result != null)
-                    {
-                        recepientUsers.Add(result);
-                    }
-                }
                 MessageThread newThread = new MessageThread()
                 {
-                    HouseMemberID = selectedMembership.HouseMemberID,
+                    HouseMemberID = senderMembership.HouseMemberID,
                     IsDeleted = 0,
                     Title = newMessage.ThreadTitle,
                     Priority = 0,
                     MessageThreadID = 0,
-                    HouseMember = selectedMembership
+                    HouseMember = senderMembership
                 };
-                var createThread = await Task.Run(() =>
+                var participant = new MessageThreadParticipant()
+                {
+                    HouseMemberID = userMembership.HouseMemberID,
+                    IsDeleted = 0,
+                    MessageThreadParticipantID = 0,
+
+                };
+                var createThreadCall = await Task.Run(() =>
                 {
                     return messageThreadRepository.CreateMessageThread(newThread);
                 });
-                if (createThread == null)
+                if (createThreadCall == null)
                 {
                     response.DidError = true;
-                    response.Message = "Error Creating Message. Please try again later";
+                    response.Message = "Error Creating message thread";
                     response.Model = null;
                     return BadRequest(response);
                 }
-                MessageThreadMessage firstMessage = new MessageThreadMessage();
-                firstMessage.HouseMemberID = selectedMembership.HouseMemberID;
-                firstMessage.Message = newMessage.ThreadMessage;
-                firstMessage.MessageThreadID = createThread.MessageThreadID;
-                firstMessage.DateSent = DateTime.Now.ToString();
-                firstMessage.MessageThreadMessageID = 0;
-                var firstMessageCall = await Task.Run(() =>
+                participant.MessageThreadID = createThreadCall.MessageThreadID;
+                var addParticipant = await Task.Run(() =>
                 {
-                    return messageThreadMessageRepository.AddMessageToThread(firstMessage);
+                    return participantRepository.AddParticipant(participant);
                 });
-                if (firstMessageCall == null)
+                if (addParticipant == null)
                 {
                     response.DidError = true;
-                    response.Message = "Error Adding message to thread";
+                    response.Message = "Error adding participant. Please try again";
                     response.Model = null;
                     return BadRequest(response);
                 }
-                bool finalResponse = false;
-                foreach (User user in recepientUsers)
+                var message = new MessageThreadMessage()
                 {
-                    MessageThreadParticipant participant = new MessageThreadParticipant();
-                    participant.HouseMemberID = recepients.First(i => i.UserID == user.Id).HouseID;
-                    participant.IsDeleted = 0;
-                    participant.MessageThreadID = createThread.MessageThreadID;
-                    participant.MessageThreadParticipantID = 0;
-                    var participantCall = await Task.Run(() =>
-                    {
-                        return participantRepository.AddParticipant(participant);
-                    });
-                    if (participantCall == null)
-                    {
-                        response.DidError = true;
-                        response.Message = "Error adding participant to the message";
-                        response.Model = null;
-                        return BadRequest(response);
-                    }
-                    var mailResponse = mailService.SendMailMessage(user.Email, $"{user.Name}", $"{selectedHouse.Name}: New Message", $"Hi {user.Name}, \n\nA new message was sent to you by {selectedUser.Name} on the {DateTime.Now.ToString()}. The contents of this message reads: \n\n {newMessage.ThreadMessage}\n\n. Please login to the application to respond to this message. \nRegards,\nHomeNET Administrative Services");
-
-                    var firebaseCall = await Task.Run(() =>
-                    {
-                        return messagingService.SendFirebaseMessage($"{selectedHouse.Name}: New Message", $"A new message has been sent to you by {selectedUser.Name}. Tap to read", user.FirebaseMessagingToken, key);
-                    });
-                    if (firebaseCall)
-                    {
-                        finalResponse = true;
-                    } else
-                    {
-                        finalResponse = false;
-                        break; //Get out the loop
-                    }
-
-                }
-                if (finalResponse)
+                    DateSent = DateTime.Now.ToString(),
+                    HouseMemberID = senderMembership.HouseMemberID,
+                    Message = newMessage.ThreadMessage,
+                    MessageThreadID = createThreadCall.MessageThreadID,
+                    MessageThreadMessageID = 0,
+                };
+                var addMessageCall = await Task.Run(() =>
                 {
-                    response.DidError = false;
-                    response.Message = "Message Conversation Created Successfully! Recepients have been notified!";
-                    response.Model = createThread;
-                    return Ok(response);
+                    return messageThreadMessageRepository.AddMessageToThread(message);
+                });
+                if (addMessageCall == null)
+                {
+                    response.DidError = true;
+                    response.Message = "error adding message to thread. Please try again";
+                    response.Model = null;
+                    return BadRequest(response);
                 } else
                 {
-                    response.DidError = true;
-                    response.Message = "Something went wrong with creating the new message";
-                    response.Model = null;
-                    return BadRequest(response);
-                } 
+                    response.DidError = false;
+                    response.Message = "Message created and sent successfully";
+                    response.Model = createThreadCall;
+                    return Ok(response);
+                }
+
             } catch (Exception error)
             {
                 response.DidError = true;
@@ -233,6 +217,9 @@ namespace HomeNetAPI.Controllers
                 response.Model = null;
                 return BadRequest(response);
             }
+
+
+    
         }
 
         [HttpPost]

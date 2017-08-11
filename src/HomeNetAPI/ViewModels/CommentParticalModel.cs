@@ -5,11 +5,10 @@ using System.Threading.Tasks;
 
 namespace HomeNetAPI.ViewModels
 {
-    public class HousePostMetaDataViewModel
+    public class CommentParticalModel
     {
+        public String EmailAddress { get; set; }
+        public String Comment { get; set; }
         public int HousePostID { get; set; }
-        public int TotalLikes { get; set; }
-        public int TotalDislikes { get; set; }
-        public int TotalComments { get; set; }
     }
 }
