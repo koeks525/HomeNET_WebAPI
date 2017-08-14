@@ -17,7 +17,9 @@ namespace HomeNetAPI.Repository
 
         public MessageThreadParticipant AddParticipant(MessageThreadParticipant newParticipant)
         {
-            throw new NotImplementedException();
+            var result = dbContext.MessageThreadParticipants.Add(newParticipant);
+            dbContext.SaveChanges();
+            return result.Entity;
         }
 
         public List<MessageThreadParticipant> GetMessageParticipants(int messageThreadID)

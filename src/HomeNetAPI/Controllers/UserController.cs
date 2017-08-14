@@ -17,6 +17,8 @@ using MailKit.Net.Smtp;
 using System.Collections.Generic;
 using MailKit;
 using MimeKit;
+using Microsoft.AspNetCore.Http;
+using System.IO;
 
 namespace HomeNetAPI.Controllers
 {
@@ -48,6 +50,142 @@ namespace HomeNetAPI.Controllers
             this.passwordHasher = passwordHasher;
             this.houseRepository = houseRepository;
             this.housePostRepository = housePostRepository;
+        }
+
+        private String GenerateRandomString()
+        {
+            Random random = new Random();
+            String finalString = "";
+            for (int a = 0; a < 10; a++)
+            {
+                finalString += Convert.ToString(random.Next(1, 50));
+            }
+            return finalString.Trim();
+        } 
+
+        [HttpGet]
+        public async Task<IActionResult> GetProfilePicture([FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            SingleResponse<FileStream> response = new SingleResponse<FileStream>();
+            try
+            {
+                if (androidClient != clientCode)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var foundUser = await userManager.FindByEmailAsync(emailAddress);
+                if (foundUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user found with provided data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (foundUser.ProfileImage != null)
+                {
+                    var fileStream = System.IO.File.Open(foundUser.ProfileImage, System.IO.FileMode.Open, FileAccess.Read);
+                    return File(fileStream, "image/jpeg");
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "No profile picture found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateProfilePicture([FromQuery] String emailAddress, [FromForm] IFormFile imageFile, [FromQuery] String clientCode) 
+        {
+            SingleResponse<User> response = new SingleResponse<Models.User>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var foundUser = await userManager.FindByEmailAsync(emailAddress);
+                if (foundUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the provided data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (imageFile == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No picure was found. Please try again";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (imageFile.ContentType != "image/jpeg")
+                {
+                    response.DidError = true;
+                    response.Message = "Only image files are accepted by the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                String newDirectory = $"C:/HomeNET/Users/{foundUser.Id}";
+                String finalFileName = "";
+                if (!Directory.Exists(newDirectory))
+                {
+                    Directory.CreateDirectory(newDirectory);
+                }
+                if (imageFile.FileName.Contains(":"))
+                {
+                    finalFileName = GenerateRandomString() + imageFile.FileName.Replace(":", "_");
+                } else
+                {
+                    finalFileName = GenerateRandomString () +imageFile.FileName;
+                }
+                using (var fileStream = new FileStream(newDirectory +"/"+finalFileName, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    await imageFile.CopyToAsync(fileStream);
+                    String oldFile = foundUser.ProfileImage;
+                    foundUser.ProfileImage = newDirectory + "/" + finalFileName;
+                    var updatedUser = await Task.Run(() =>
+                    {
+                        return userRepository.UpdateUserAccount(foundUser);
+                    });
+                    if (oldFile != null) {
+                        System.IO.File.Delete(oldFile);
+                    }
+                    if (updatedUser != null) {
+                        response.DidError = false;
+                        response.Message = "Profile picture saved!";
+                        response.Model = updatedUser;
+                        return Ok(response);
+
+                    } else
+                    {
+                        response.DidError = true;
+                        response.Model = foundUser;
+                        response.Message = "Error saving profile picure";
+                        return BadRequest(response);
+                    }
+ 
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
         }
 
         [HttpPost]

@@ -58,8 +58,37 @@ namespace HomeNetAPI.Repository
 
         public List<MessageThread> GetMessageThreadForMembership(int houseMemberID)
         {
+            List<MessageThread> finalList = new List<MessageThread>();
             var result = dbContext.MessageThreads.Where(i => i.HouseMemberID == houseMemberID).ToList();
-            return result;
+            var others = dbContext.MessageThreadParticipants.Where(i => i.HouseMemberID == houseMemberID).ToList();
+            if (others != null)
+            {
+                foreach (MessageThreadParticipant participant in others)
+                {
+                    var thread = dbContext.MessageThreads.First(i => i.MessageThreadID == participant.MessageThreadID);
+                    if (thread != null)
+                    {
+                        finalList.Add(thread);
+                    }
+                }
+            }
+            if (result != null)
+            {
+                foreach (MessageThread thread in result)
+                {
+                    if (!finalList.Contains(thread))
+                    {
+                        finalList.Add(thread);
+                    }
+                }
+            }
+            if (finalList.Count > 0)
+            {
+                return finalList;
+            } else
+            {
+                return null;
+            }
         }
     }
 }

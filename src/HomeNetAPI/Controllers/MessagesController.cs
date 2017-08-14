@@ -230,7 +230,7 @@ namespace HomeNetAPI.Controllers
             {
                 List<User> participantList = new List<User>();
                 List<HouseMember> memberList = new List<HouseMember>();
-                if (clientCode == androidClient)
+                if (clientCode != androidClient)
                 {
                     response.DidError = true;
                     response.Message = "Please send valid client credentials to the server";
@@ -263,10 +263,31 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return NotFound(response);
                 }
+                var houseMembership = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMembership(messageModel.HouseMemberID);
+                });
+                if (houseMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house membership was found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var userMembership = houseMemberships.First(i => i.HouseID == houseMembership.HouseID);
+                if (userMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No matching house could be found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
+
                 MessageThreadMessage newMessage = new MessageThreadMessage()
                 {
                     DateSent = DateTime.Now.ToString(),
-                    HouseMemberID = messageModel.HouseMemberID,
+                    HouseMemberID = userMembership.HouseMemberID,
                     Message = messageModel.Message,
                     MessageThreadID = messageModel.MessageThreadID,
                     MessageThreadMessageID = 0,
@@ -513,6 +534,8 @@ namespace HomeNetAPI.Controllers
         {
             ListResponse<MessageThread> response = new ListResponse<MessageThread>();
             List<MessageThread> messageList = new List<MessageThread>();
+            List<House> houseList = new List<House>();
+            List<HouseMember> houseListMemberships = new List<HouseMember>();
             try
             {
                 if (clientCode != androidClient)
@@ -530,47 +553,51 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return NotFound(response);
                 }
-                var houseMemberships = await Task.Run(() =>
+                var userMemberships = await Task.Run(() =>
                 {
                     return houseMemberRepository.GetHouseMember(selectedUser.Id);
                 });
-                if (houseMemberships == null)
+                if (userMemberships == null)
                 {
                     response.DidError = true;
                     response.Message = "No house memberships have been found";
                     response.Model = null;
                     return NotFound(response);
                 }
-                foreach (HouseMember item in houseMemberships)
+
+                foreach (HouseMember member in userMemberships)
                 {
                     var messageThreads = await Task.Run(() =>
                     {
-                        return messageThreadRepository.GetMessageThreadForMembership(item.HouseMemberID);
+                        return messageThreadRepository.GetMessageThreadForMembership(member.HouseMemberID);
                     });
-                    if (messageThreads == null)
+                    if (messageThreads != null)
                     {
-                        continue;
-                    } else
-                    {
-                        foreach (MessageThread thread in messageThreads)
+                        foreach (MessageThread currentThread in messageThreads)
                         {
-                            messageList.Add(thread);
+                            if (!messageList.Contains(currentThread))
+                            {
+                                messageList.Add(currentThread);
+                            }
                         }
                     }
                 }
                 if (messageList.Count <= 0)
                 {
                     response.DidError = true;
-                    response.Message = "No message threads were found for the selected user";
+                    response.Message = "No messages have been found";
                     response.Model = null;
                     return NotFound(response);
                 } else
                 {
                     response.DidError = false;
-                    response.Message = "Here are the threads";
                     response.Model = messageList;
+                    response.Message = "Herewith the messages";
                     return Ok(response);
                 }
+
+
+
                 
             } catch (Exception error)
             {

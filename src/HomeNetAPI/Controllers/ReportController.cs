@@ -16,14 +16,16 @@ namespace HomeNetAPI.Controllers
     public class ReportController : Controller
     {
         private IHouseRepository houseRepository;
+        private IAnnouncementRepository announcementRepository;
         private IHousePostRepository housePostRepository;
         private IHouseMemberRepository houseMemberRepository;
         private IUserRepository userRepository;
         private UserManager<User> userManager;
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
 
-        public ReportController(IHousePostRepository housePostRepository, IHouseRepository houseRepository, UserManager<User> userManager, IHouseMemberRepository houseMemberRepository, IUserRepository userRepository)
+        public ReportController(IHousePostRepository housePostRepository, IHouseRepository houseRepository, UserManager<User> userManager, IHouseMemberRepository houseMemberRepository, IUserRepository userRepository, IAnnouncementRepository announcementRepository)
         {
+            this.announcementRepository = announcementRepository;
             this.userRepository = userRepository;
             this.houseMemberRepository = houseMemberRepository;
             this.houseRepository = houseRepository;
@@ -97,7 +99,7 @@ namespace HomeNetAPI.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpPost]
         public async Task<IActionResult> GetUserOverviewReport([FromForm] String emailAddress, [FromQuery] String clientCode)
         {
             SingleResponse<UserData> response = new SingleResponse<UserData>();
@@ -133,11 +135,22 @@ namespace HomeNetAPI.Controllers
                 {
                     userData.TotalPosts = selectedPosts.Count();
                 }
-
-
-
-
-
+                var announcements = await Task.Run(() =>
+                {
+                    return announcementRepository.GetUserAnnoucements(selectedUser.Id);
+                });
+                if (announcements != null)
+                {
+                    userData.TotalAnnouncements = announcements.Count;
+                }
+                var totalMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(selectedUser.Id);
+                });
+                if (totalMemberships != null)
+                {
+                    userData.TotalHousesJoined = totalMemberships.Count;
+                }
 
                 response.DidError = false;
                 response.Message = "Here is what the server can tell about the user";
