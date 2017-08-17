@@ -247,9 +247,9 @@ namespace HomeNetAPI.Controllers
                     {
                         var result = await Task.Run(() =>
                         {
-                            return messagingService.SendFirebaseMessage($"{selectedHouse.Name}: New Announcement Received", $"A new announcement has been created by a house member {selectedUser.UserName}. Tap to view", user.FirebaseMessagingToken, firebaseToken);
+                            return messagingService.SendFirebaseMessage(2, $"{selectedHouse.Name}: New Announcement Received", $"A new announcement has been created by a house member {selectedUser.UserName}. Tap to view", user.FirebaseMessagingToken, firebaseToken);
                         });
-                        var sendEmail = mailService.SendMailMessage($"{user.Name} {user.Surname}", user.Email, $"{selectedHouse.Name}: New Announcement Created", $"Hi, {user.Name},\n\nA new announcement was made by a user in one of the houses you are subscribed to. You should have received a push notification on your mobile device. Here are details to the new notification:\n\nAnnouncement Title: {newAnnouncement.Title}\nAnnouncement Message: {newAnnouncement.Message}\nCreated By: {selectedUser.Name} {selectedUser.Surname}\n\nPlease login to the application to view the announcement or comment. \n\nRegards,\nHomeNET Administrative Services");
+                        var sendEmail = mailService.SendMailMessage( $"{user.Name} {user.Surname}", user.Email, $"{selectedHouse.Name}: New Announcement Created", $"Hi, {user.Name},\n\nA new announcement was made by a user in one of the houses you are subscribed to. You should have received a push notification on your mobile device. Here are details to the new notification:\n\nAnnouncement Title: {newAnnouncement.Title}\nAnnouncement Message: {newAnnouncement.Message}\nCreated By: {selectedUser.Name} {selectedUser.Surname}\n\nPlease login to the application to view the announcement or comment. \n\nRegards,\nHomeNET Administrative Services");
                         
                     }
 

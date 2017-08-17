@@ -17,7 +17,19 @@ namespace HomeNetAPI.Repository
         public List<HousePostMetaData> GetHousePostMetaData(int housePostID)
         {
             var dataList = dbContext.HousePostMetaData.Where(i => i.HousePostID == housePostID).ToList();
-            return dataList;
+            if (dataList != null)
+            {
+                if (dataList.Count <= 0)
+                {
+                    return null;
+                } else
+                {
+                    return dataList; 
+                }
+            } else
+            {
+                return dataList;
+            }
         }
 
         public HousePostMetaData RegisterDislike(HousePostMetaData newData)

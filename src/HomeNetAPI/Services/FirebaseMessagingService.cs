@@ -15,36 +15,33 @@ namespace HomeNetAPI.Services
     public class FirebaseMessagingService : IFirebaseMessagingService
     {
 
-        //Source: https://stackoverflow.com/questions/37750451/send-http-post-message-in-asp-net-core-using-httpclient-postasjsonasync 
-        //Source: https://firebase.google.com/docs/cloud-messaging/server 
-        //Source: https://code.msdn.microsoft.com/windowsapps/How-to-use-HttpClient-to-b9289836/view/SourceCode#content 
-        public async Task<bool> SendFirebaseMessage(string title, string message, string token, string key)
+        public async Task<bool> SendFirebaseMessage(int id, string title, string message, string token, string key)
         {
-            String link = "https://fcm.googleapis.com/fcm/send";
-            Uri firebaseUri = new Uri(link);
-            HttpClient client = new HttpClient();
-            client.BaseAddress = firebaseUri;
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Content-Type", "application/json; charset=utf-8");
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"key={key}");
-            FirebaseMessage firebaseMessage = new FirebaseMessage();
-            
-            firebaseMessage.to = token;
-            firebaseMessage.data = new Data()
+           
+            FirebaseInterface service = RestClient.For<FirebaseInterface>("https://fcm.googleapis.com");
+            var data = new
             {
-                title = title,
-                message = message,
-                dateSent = DateTime.Now.ToString(),
+                to = token,
+                data = new
+                {
+                    body = message,
+                    title = title,
+                    dataID = id,
+
+                },
+                priority = "high"
             };
-            String serializer = JsonConvert.SerializeObject(firebaseMessage);
-            HttpResponseMessage response = await client.PostAsync(link, new StringContent(serializer, Encoding.UTF8, "application/json"));
-            String fromServer = await response.Content.ReadAsStringAsync();
-            if (response.IsSuccessStatusCode)
+            var serializedData = JsonConvert.SerializeObject(data);
+            var sendTask = await service.SendFirebaseMessage(serializedData);
+            if (sendTask.ResponseMessage.StatusCode == System.Net.HttpStatusCode.OK)
             {
+                //var responseData = JsonConvert.DeserializeObject(sendTask.StringContent);
                 return true;
             } else
             {
+               //Request could not be sent for some reason. 
                 return false;
-            }   
+            }
         }
     }
 }

@@ -42,6 +42,15 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return BadRequest(response);
                 }
+
+                if (housePostID == 0)
+                {
+                    response.DidError = true;
+                    response.Message = "Invalid house post data";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
                 var selectedUser = await Task.Run(() =>
                 {
                     return userManager.FindByEmailAsync(emailAddress);
@@ -161,7 +170,6 @@ namespace HomeNetAPI.Controllers
                         DateAdded = DateTime.Now.ToString(),
                         HousePostID = housePostID,
                         IsDeleted = 0,
-                        HousePostMetaDataID = 0,
                         Liked = 0,
                         Disliked = 1,
                         UserID = selectedUser.Id,
@@ -169,7 +177,7 @@ namespace HomeNetAPI.Controllers
                     };
                     var likeReg = await Task.Run(() =>
                     {
-                        return metaDataRepository.RegisterLike(data);
+                        return metaDataRepository.RegisterDislike(data);
                     });
                     if (likeReg == null)
                     {
@@ -249,7 +257,12 @@ namespace HomeNetAPI.Controllers
                 }
                 HousePostMetaDataViewModel model = new HousePostMetaDataViewModel()
                 {
-                    HousePostID = housePostID
+                    HousePostID = housePostID,
+                    TotalComments = await Task.Run(() =>
+                    {
+                        return commentRepository.GetComments(housePostID).Count;
+                    }),
+                    
 
                 };
                 foreach (HousePostMetaData metaData in housePostMetaData)

@@ -162,7 +162,7 @@ namespace HomeNetAPI.Controllers
                 if (file != null)
                 {//Add a new image 
                     String finalFileName = "";
-                    String directory = $"C:/HomeNET/Houses/{selectedHouse.HouseID}/Posts";
+                    String directory = $"C:/HomeNET/Houses/Posts/{selectedHouse.HouseID}";
                     if (file.FileName.Contains(":"))
                     {
                         finalFileName = file.FileName.Replace(":", "_");

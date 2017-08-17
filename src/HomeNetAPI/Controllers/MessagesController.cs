@@ -336,7 +336,7 @@ namespace HomeNetAPI.Controllers
                 {
                     var result = await Task.Run(() =>
                     {
-                        return messagingService.SendFirebaseMessage($"New Message From {selectedUser.Name}", $"A New message has been sent by {selectedUser.Name}.", thisUser.FirebaseMessagingToken, key);
+                        return messagingService.SendFirebaseMessage(1, $"New Message From {selectedUser.Name}", $"A New message has been sent by {selectedUser.Name}.", thisUser.FirebaseMessagingToken, key);
                     });
                 }
                 response.DidError = false;

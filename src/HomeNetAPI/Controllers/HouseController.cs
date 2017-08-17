@@ -594,7 +594,7 @@ namespace HomeNetAPI.Controllers
                     bool sentToUser = mailService.SendMailMessage(selectedUser.Name, selectedUser.Email, $"{selectedHouse.Name}: New Join Request Received", toUser);
                     if (administrator.FirebaseMessagingToken != null)
                     {
-                        bool sent = await firebaseService.SendFirebaseMessage($"{selectedHouse.Name}: New User Join Request", $"{selectedUser.Name} has requested to join your house. Please attend to this", administrator.FirebaseMessagingToken, firebaseToken);
+                        bool sent = await firebaseService.SendFirebaseMessage(3, $"{selectedHouse.Name}: New User Join Request", $"{selectedUser.Name} has requested to join your house. Please attend to this", administrator.FirebaseMessagingToken, firebaseToken);
                         response.DidError = false;
                         response.Message = $"You have successfully requested membership for {selectedHouse.Name}. The admin has been notified and will respond to your request. ";
                         response.Model = member;

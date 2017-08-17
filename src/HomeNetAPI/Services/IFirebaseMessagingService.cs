@@ -7,6 +7,6 @@ namespace HomeNetAPI.Services
 {
     public interface IFirebaseMessagingService
     {
-        Task<bool> SendFirebaseMessage(String title, String message, String token, string key);
+        Task<bool> SendFirebaseMessage(int id, String title, String message, String token, string key);
     }
 }
