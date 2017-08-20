@@ -204,6 +204,8 @@ namespace HomeNetAPI.Controllers
                     return BadRequest(response);
                 } else
                 {
+                    await messagingService.SendFirebaseMessage(4, "New Message Received", $"{senderUser.Name} sent you a new message. Log into HomeNET to see the message", selectedUser.FirebaseMessagingToken, key);
+                
                     response.DidError = false;
                     response.Message = "Message created and sent successfully";
                     response.Model = createThreadCall;

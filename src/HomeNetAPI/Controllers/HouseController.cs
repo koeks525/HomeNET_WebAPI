@@ -20,6 +20,8 @@ namespace HomeNetAPI.Controllers
     public class HouseController : Controller
     {
         private IHouseRepository houseRepository;
+        private IHousePostRepository postRepository;
+        private IHousePostMetaDataRepository metaDataRepository;
         private IUserRepository userRepository;
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
         private String firebaseToken = " AIzaSyBhLv8gbKVzEIhtfYYSIcCRUkbS7z61qT0";
@@ -29,9 +31,14 @@ namespace HomeNetAPI.Controllers
         private IHouseMemberRepository houseMemberRepository;
         private IMailMessage mailService;
         private IFirebaseMessagingService firebaseService;
+        private IAnnouncementRepository announcementRepository;
+        private ICommentRepository commentRepository;
 
-        public HouseController(IHouseRepository houseRepository, IUserRepository userRepository, UserManager<User> userManager, IHouseImageRepository profileRepository, IImageProcessor imageProcessor, IHouseMemberRepository houseMemberRepository, IMailMessage mailService, IFirebaseMessagingService firebaseService)
+        public HouseController(IHouseRepository houseRepository, IUserRepository userRepository, UserManager<User> userManager, IHouseImageRepository profileRepository, IImageProcessor imageProcessor, IHouseMemberRepository houseMemberRepository, IMailMessage mailService, IFirebaseMessagingService firebaseService, IHousePostRepository postRepository, IHousePostMetaDataRepository metaDataRepository, IAnnouncementRepository announcementRepository, ICommentRepository commentRepository)
         {
+            this.announcementRepository = announcementRepository;
+            this.postRepository = postRepository;
+            this.metaDataRepository = metaDataRepository;
             this.firebaseService = firebaseService;
             this.mailService = mailService;
             this.houseMemberRepository = houseMemberRepository;
@@ -40,6 +47,7 @@ namespace HomeNetAPI.Controllers
             this.userManager = userManager;
             this.profileRepository = profileRepository;
             this.imageProcessor = imageProcessor;
+            this.commentRepository = commentRepository;
         }
 
         [HttpPost]
@@ -767,8 +775,213 @@ namespace HomeNetAPI.Controllers
             }
             return finalString.Trim();
         }
-
         
+        [HttpGet]
+        public async Task<IActionResult> GenerateHouseMetricsReport([FromQuery] int houseID, [FromQuery] String clientCode)
+        {
+            SingleResponse<HouseViewModel> response = new SingleResponse<HouseViewModel>();
+            List<HousePost> housePostList = new List<HousePost>();
+            List<HousePostComment> commentList = new List<HousePostComment>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the provided data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedOwner = await userManager.FindByIdAsync(Convert.ToString(selectedHouse.UserID));
+                if (selectedOwner == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No owner data was found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var houseMembers = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMemberships(selectedHouse.HouseID);
+                });
+                if (houseMembers == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house members were found, therefore this report is invalid";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (HouseMember member in houseMembers)
+                {
+                    var postsFound = await Task.Run(() =>
+                    {
+                        return postRepository.GetHousePosts(member.HouseMemberID);
+                    });
+                    if (postsFound != null)
+                    {
+                        foreach (HousePost foundPost in postsFound)
+                        {
+                            housePostList.Add(foundPost);
+                        }
+                    }
+                }
+                var announcements = await Task.Run(() =>
+                {
+                    return announcementRepository.GetHouseAnnouncements(selectedHouse.HouseID);
+                });
+                foreach (HousePost thisPost in housePostList)
+                {
+                    var comments = await Task.Run(() =>
+                    {
+                        return commentRepository.GetComments(thisPost.HousePostID);
+                    });
+                    if (comments != null)
+                    {
+                        foreach (HousePostComment comment in comments)
+                        {
+                            commentList.Add(comment);
+                        }
+                    }
+                }
+
+                var bannedMembers = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetBannedHouseMembers(selectedHouse.HouseID);
+                });
+
+                var model = new HouseViewModel()
+                {
+                    HouseID = selectedHouse.HouseID,
+                    Name = selectedHouse.Name,
+                    Description = selectedHouse.Description,
+                    DateCreated = selectedHouse.DateCreated,
+                    Owner = selectedOwner.Name + " " + selectedOwner.Surname,
+                    HouseImage = selectedHouse.HouseImage,
+                    TotalAnnouncements = announcements.Count,
+                    TotalComments = commentList.Count,
+                    TotalMembers = houseMembers.Count,
+                    TotalPosts = housePostList.Count,
+                };
+                if (bannedMembers != null)
+                {
+                    model.BannedMembers = bannedMembers.Count;
+                } else
+                {
+                    model.BannedMembers = 0;
+                }
+                response.DidError = false;
+                response.Message = "Herewith house metrics";
+                response.Model = model;
+                return Ok(response);
+                
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> LeaveHouse([FromQuery] int houseID, [FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            SingleResponse<HouseMember> response = new SingleResponse<HouseMember>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the provided data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the selected data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var houseMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMemberships(selectedHouse.HouseID);
+                });
+                if (houseMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The selected house does not have any memberships. Please try another house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                HouseMember userMembership = null;
+                foreach (HouseMember member in houseMemberships)
+                {
+                    if (member.UserID == selectedUser.Id && member.HouseID == selectedHouse.HouseID)
+                    {
+                        userMembership = member;
+                        break;
+                    }
+                }
+                if (userMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house membership for the selected user was found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                userMembership.DateLeft = DateTime.Now.ToString();
+                userMembership.ApprovalStatus = 3;
+                var update = await Task.Run(() =>
+                {
+                    return houseMemberRepository.UpdateMembership(userMembership);
+                });
+                if (update != null)
+                {
+                    response.DidError = false;
+                    response.Message = "House member has left";
+                    response.Model = update;
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "Something went wrong with updating house membership";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+            }
+            catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + " " + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
     }
 }
  

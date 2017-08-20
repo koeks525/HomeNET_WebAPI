@@ -119,10 +119,35 @@ namespace HomeNetAPI.Controllers
                         }
                     }
 
-                    response.DidError = false;
-                    response.Model = null;
-                    response.Message = "There was an error with creating the like record. Please try again";
-                    return BadRequest(response);
+                    HousePostMetaData data = new HousePostMetaData()
+                    {
+                        DateAdded = DateTime.Now.ToString(),
+                        HousePostID = housePostID,
+                        IsDeleted = 0,
+                        HousePostMetaDataID = 0,
+                        Liked = 1,
+                        Disliked = 0,
+                        UserID = selectedUser.Id,
+
+                    };
+                    var likeRecord = await Task.Run(() =>
+                    {
+                        return metaDataRepository.RegisterLike(data);
+                    });
+                    if (likeRecord != null)
+                    {
+                        response.DidError = false;
+                        response.Message = "Like added successfully!";
+                        response.Model = data;
+                        return Ok(response);
+                    }
+                    else
+                    {
+                        response.DidError = false;
+                        response.Model = null;
+                        response.Message = "There was an error with creating the like record. Please try again";
+                        return BadRequest(response);
+                    }
                 }
             } catch (Exception error)
             {
@@ -215,10 +240,36 @@ namespace HomeNetAPI.Controllers
                         }
                     }
 
-                    response.DidError = false;
-                    response.Model = null;
-                    response.Message = "There was an error with creating the like record. Please try again";
-                    return BadRequest(response);
+                    HousePostMetaData data = new HousePostMetaData()
+                    {
+                        DateAdded = DateTime.Now.ToString(),
+                        HousePostID = housePostID,
+                        IsDeleted = 0,
+                        Liked = 0,
+                        Disliked = 1,
+                        UserID = selectedUser.Id,
+
+                    };
+
+                    var dislikeRecord = await Task.Run(() =>
+                    {
+                        return metaDataRepository.RegisterDislike(data);
+                    });
+
+                    if (dislikeRecord != null)
+                    {
+                        response.DidError = false;
+                        response.Message = "Dislike registered successfully";
+                        response.Model = data;
+                        return Ok(response);
+                    }
+                    else
+                    {
+                        response.DidError = false;
+                        response.Model = null;
+                        response.Message = "There was an error with creating the like record. Please try again";
+                        return BadRequest(response);
+                    }
                 }
             } catch (Exception error)
             {

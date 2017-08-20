@@ -8,6 +8,7 @@ using HomeNetAPI.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using HomeNetAPI.ViewModels;
+using HomeNetAPI.Services;
 
 namespace HomeNetAPI.Controllers
 {
@@ -21,9 +22,13 @@ namespace HomeNetAPI.Controllers
         private IHouseRepository houseRepository;
         private UserManager<User> userManager;
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
+        private String key = "AIzaSyBhLv8gbKVzEIhtfYYSIcCRUkbS7z61qT0";
+        private IFirebaseMessagingService messagingService;
+        
 
-        public CommentController(ICommentRepository commentRepository, IHousePostRepository postRepository, UserManager<User> userManager, IHouseMemberRepository memberRepository, IHouseRepository houseRepository)
+        public CommentController(ICommentRepository commentRepository, IHousePostRepository postRepository, UserManager<User> userManager, IHouseMemberRepository memberRepository, IHouseRepository houseRepository, IFirebaseMessagingService messagingService)
         {
+            this.messagingService = messagingService;
             this.commentRepository = commentRepository;
             this.postRepository = postRepository;
             this.userManager = userManager;
@@ -137,6 +142,7 @@ namespace HomeNetAPI.Controllers
         public async Task<IActionResult> AddComment([FromBody] CommentParticalModel model, [FromQuery] String clientCode) 
         {
             SingleResponse<CommentViewModel> response = new SingleResponse<CommentViewModel>();
+            List<User> userList = new List<Models.User>();
             try
             {
                 if (clientCode != androidClient)
@@ -172,7 +178,7 @@ namespace HomeNetAPI.Controllers
                     response.Message = "No house post was found with the request";
                     return NotFound(response);
                 }
-
+                
                 var ownerMembership = await Task.Run(() =>
                 {
                     return memberRepository.GetHouseMembership(selectedPost.HouseMemberID);
@@ -181,6 +187,25 @@ namespace HomeNetAPI.Controllers
                 {
                     response.DidError = true;
                     response.Message = "No owner information was found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var ownerUser = await userManager.FindByIdAsync(Convert.ToString(ownerMembership.UserID));
+                if (ownerUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No owner information found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(ownerMembership.HouseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house found";
                     response.Model = null;
                     return NotFound(response);
                 }
@@ -211,6 +236,25 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return BadRequest(response);
                 }
+                var houseMemberships = await Task.Run(() =>
+                {
+                    return memberRepository.GetHouseMemberships(userMembership.HouseID);
+                });
+                if (houseMemberships != null)
+                {
+                    foreach (HouseMember member in houseMemberships)
+                    {
+                        var foundUser = await userManager.FindByIdAsync(Convert.ToString(member.UserID));
+                        if (foundUser != null)
+                        {
+                            if (foundUser.Id != selectedUser.Id)
+                            {
+                                userList.Add(foundUser);
+                            }
+                        }
+                    }
+                }
+
                 var newComment = new HousePostComment()
                 {
                     Comment = model.Comment,
@@ -233,6 +277,12 @@ namespace HomeNetAPI.Controllers
                     return BadRequest(response);
                 } else
                 {
+                    foreach (User thisUser in userList)
+                    {
+                        await messagingService.SendFirebaseMessage(3, $"{selectedHouse.Name}: New Comment on {ownerUser.Name} Post", $"A new comment has been posted on {ownerUser.Name}'s post!. Log into HomeNET to view the comment", thisUser.FirebaseMessagingToken, key);
+                    }
+
+
                     var commentModel = new CommentViewModel()
                     {
                         Name = selectedUser.Name,

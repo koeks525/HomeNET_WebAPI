@@ -24,14 +24,17 @@ namespace HomeNetAPI.Controllers
     {
         private UserManager<User> userManager;
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
+        private String token = "AIzaSyBhLv8gbKVzEIhtfYYSIcCRUkbS7z61qT0";
         private IHousePostRepository housePostRepository;
         private IHouseMemberRepository houseMemberRepository;
         private IHouseRepository houseRepository;
         private IImageProcessor imageProcessor;
+        private IFirebaseMessagingService messagingService;
 
 
-        public HousePostController(UserManager<User> userManager, IHousePostRepository housePostRepository, IHouseRepository houseRepository, IImageProcessor imageProcessor, IHouseMemberRepository houseMemberRepository)
+        public HousePostController(UserManager<User> userManager, IHousePostRepository housePostRepository, IHouseRepository houseRepository, IImageProcessor imageProcessor, IHouseMemberRepository houseMemberRepository, IFirebaseMessagingService messagingService)
         {
+            this.messagingService = messagingService;
             this.houseMemberRepository = houseMemberRepository;
             this.userManager = userManager;
             this.housePostRepository = housePostRepository;
@@ -93,6 +96,7 @@ namespace HomeNetAPI.Controllers
         ///Add a new photo for a selected user in a selected house. 
         public async Task<IActionResult> AddHousePost([FromQuery] int houseID, [FromForm] String emailAddress, [FromForm] String postText, [FromForm] String location, [FromQuery] String clientCode, [FromForm] IFormFile file)
         {
+            List<User> subscribedMembers = new List<Models.User>();
             SingleResponse<HousePost> response = new SingleResponse<HousePost>();
             try
             {
@@ -133,92 +137,130 @@ namespace HomeNetAPI.Controllers
                     return NotFound(response);
                 }
 
-                HousePost newPost = new HousePost();
-                newPost.PostText = postText;
-                newPost.DatePosted = DateTime.Now.ToString();
-                if (location != null)
+                var houseMemberships = await Task.Run(() =>
                 {
-                    newPost.Location = location;
-                }
-                //UserID and HouseID must align.
-                var houseMembership = await Task.Run(() =>
-                {
-                    return houseMemberRepository.GetMembership(selectedHouse.HouseID, selectedUser.Id);
+                    return houseMemberRepository.GetHouseMemberships(selectedHouse.HouseID);
                 });
-                if (houseMembership == null)
+                if (houseMemberships != null)
                 {
-                    response.DidError = true;
-                    response.Message = "The selected user does not appear to have a membership with the house";
-                    response.Model = null;
-                    return NotFound(response);
-                }
-                newPost.HouseMemberID = houseMembership.HouseMemberID;
-                newPost.IsDeleted = 0;
-                newPost.IsFlagged = 0;
-                if (location != null)
-                {
-                    newPost.Location = location;
-                }
-                if (file != null)
-                {//Add a new image 
-                    String finalFileName = "";
-                    String directory = $"C:/HomeNET/Houses/Posts/{selectedHouse.HouseID}";
-                    if (file.FileName.Contains(":"))
+                    foreach (HouseMember member in houseMemberships)
                     {
-                        finalFileName = file.FileName.Replace(":", "_");
-                    } else
-                    {
-                        finalFileName = file.FileName;
+                        var foundUser = await userManager.FindByIdAsync(Convert.ToString(member.UserID));
+                        if (foundUser != null)
+                        {
+                            if (foundUser.Id != selectedUser.Id)
+                            {
+                                subscribedMembers.Add(foundUser);
+                            }
+                        }
                     }
-                    finalFileName = GenerateRandomString() + finalFileName;
-                    if (!Directory.Exists(directory))
+                }
+
+                    HousePost newPost = new HousePost();
+                    newPost.PostText = postText;
+                    newPost.DatePosted = DateTime.Now.ToString();
+                    if (location != null)
                     {
-                        Directory.CreateDirectory(directory);
+                        newPost.Location = location;
                     }
-                    using (var fileStream = new FileStream(directory + "/"+finalFileName, FileMode.Create, FileAccess.ReadWrite))
+                    //UserID and HouseID must align.
+                    var houseMembership = await Task.Run(() =>
                     {
-                        newPost.MediaResource = directory + "/" + finalFileName;
-                        await file.CopyToAsync(fileStream);
-                        var result = await Task.Run(() =>
+                        return houseMemberRepository.GetMembership(selectedHouse.HouseID, selectedUser.Id);
+                    });
+                    if (houseMembership == null)
+                    {
+                        response.DidError = true;
+                        response.Message = "The selected user does not appear to have a membership with the house";
+                        response.Model = null;
+                        return NotFound(response);
+                    }
+                    newPost.HouseMemberID = houseMembership.HouseMemberID;
+                    newPost.IsDeleted = 0;
+                    newPost.IsFlagged = 0;
+                    if (location != null)
+                    {
+                        newPost.Location = location;
+                    }
+                    if (file != null)
+                    {//Add a new image 
+                        String finalFileName = "";
+                        String directory = $"C:/HomeNET/Houses/Posts/{selectedHouse.HouseID}";
+                        if (file.FileName.Contains(":"))
+                        {
+                            finalFileName = file.FileName.Replace(":", "_");
+                        }
+                        else
+                        {
+                            finalFileName = file.FileName;
+                        }
+                        finalFileName = GenerateRandomString() + finalFileName;
+                        if (!Directory.Exists(directory))
+                        {
+                            Directory.CreateDirectory(directory);
+                        }
+                        using (var fileStream = new FileStream(directory + "/" + finalFileName, FileMode.Create, FileAccess.ReadWrite))
+                        {
+                            newPost.MediaResource = directory + "/" + finalFileName;
+                            await file.CopyToAsync(fileStream);
+                            var result = await Task.Run(() =>
+                            {
+                                return housePostRepository.AddHousePost(newPost);
+
+                            });
+                            if (result != null)
+                            {
+                                if (subscribedMembers.Count > 0)
+                            {
+                                foreach (User currentUser in subscribedMembers)
+                                {
+                                   await messagingService.SendFirebaseMessage(2, $"{selectedHouse.Name}: New Post!", $"{selectedUser.Name} added a new post to your house! Log into HomeNET now to view the post! ", currentUser.FirebaseMessagingToken, token);
+                                }
+                            }
+                                response.DidError = false;
+                                response.Model = result;
+                                response.Message = "New post created successfully!";
+                                return Ok(response);
+                            }
+                            else
+                            {
+                                response.DidError = true;
+                                response.Message = "Error Adding new Post";
+                                response.Model = null;
+                                return BadRequest(response);
+                            }
+                        }
+
+                    }
+                    else
+                    {
+                        var addResult = await Task.Run(() =>
                         {
                             return housePostRepository.AddHousePost(newPost);
-
                         });
-                        if (result != null)
+                        if (addResult != null)
+                        {
+                        if (subscribedMembers.Count > 0)
+                        {
+                            foreach (User currentUser in subscribedMembers)
+                            {
+                                await messagingService.SendFirebaseMessage(2, $"{selectedHouse.Name}: New Post!", $"{selectedUser.Name} added a new post to your house! Log into HomeNET now to view the post! ", currentUser.FirebaseMessagingToken, token);
+                            }
+                        }
+
+                        response.DidError = false;
+                            response.Message = "New post added successfully!";
+                            response.Model = addResult;
+                            return Ok(response);
+                        }
+                        else
                         {
                             response.DidError = false;
-                            response.Model = result;
-                            response.Message = "New post created successfully!";
-                            return Ok(response);
-                        } else
-                        {
-                            response.DidError = true;
-                            response.Message = "Error Adding new Post";
+                            response.Message = "Error adding house post. Please try again";
                             response.Model = null;
                             return BadRequest(response);
                         }
                     }
-
-                } else
-                {
-                    var addResult = await Task.Run(() =>
-                    {
-                        return housePostRepository.AddHousePost(newPost);
-                    });
-                    if (addResult != null)
-                    {
-                        response.DidError = false;
-                        response.Message = "New post added successfully!";
-                        response.Model = addResult;
-                        return Ok(response);
-                    } else
-                    {
-                        response.DidError = false;
-                        response.Message = "Error adding house post. Please try again";
-                        response.Model = null;
-                        return BadRequest(response);
-                    }
-                }
 
             } catch (Exception error)
             {
