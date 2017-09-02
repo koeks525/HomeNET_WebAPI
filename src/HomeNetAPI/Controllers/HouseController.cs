@@ -434,7 +434,7 @@ namespace HomeNetAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetHouseProfileImage([FromQuery] int houseID, [FromQuery] String clientCode)
         {
-            SingleResponse<Object> response = new SingleResponse<Object>();
+            SingleResponse<FileStream> response = new SingleResponse<FileStream>();
             try
             {
                if (clientCode != androidClient)
@@ -458,7 +458,7 @@ namespace HomeNetAPI.Controllers
                 }
                 if (selectedHouse.HouseImage != null)
                 {
-                    var foundImage = System.IO.File.OpenRead(selectedHouse.HouseImage);
+                    var foundImage = System.IO.File.Open(selectedHouse.HouseImage, FileMode.Open, FileAccess.Read);
                     if (foundImage != null)
                     {
                         return File(foundImage, "image/jpeg");

@@ -8,6 +8,7 @@ using HomeNetAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using HomeNetAPI.ViewModels;
+using HomeNetAPI.Services;
 
 namespace HomeNetAPI.Controllers
 {
@@ -17,12 +18,19 @@ namespace HomeNetAPI.Controllers
     {
         private IHousePostMetaDataRepository metaDataRepository;
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
+        private String token = "";
         private UserManager<User> userManager;
         private IHousePostRepository housePostRepository;
         private ICommentRepository commentRepository;
+        private IHouseMemberRepository memberRepository;
+        private IFirebaseMessagingService messagingService;
+        private IHouseRepository houseRepository;
 
-        public HousePostMetaDataController(IHousePostMetaDataRepository metaDataRepository, UserManager<User> userManager, IHousePostRepository housePostRepository, ICommentRepository commentRepository)
+        public HousePostMetaDataController(IHousePostMetaDataRepository metaDataRepository, UserManager<User> userManager, IHousePostRepository housePostRepository, ICommentRepository commentRepository, IHouseMemberRepository memberRepository, IFirebaseMessagingService messagingService, IHouseRepository houseRepository)
         {
+            this.houseRepository = houseRepository;
+            this.messagingService = messagingService;
+            this.memberRepository = memberRepository;
             this.metaDataRepository = metaDataRepository;
             this.userManager = userManager;
             this.housePostRepository = housePostRepository;
@@ -62,6 +70,50 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return NotFound(response);
                 }
+                var selectedPost = await Task.Run(() =>
+                {
+                    return housePostRepository.GetHousePost(housePostID);
+                });
+                var membership = await Task.Run(() =>
+                {
+                    return memberRepository.GetHouseMembership(selectedPost.HouseMemberID);
+                });
+
+                if (membership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No membership details were found for the selected post";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (selectedPost == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house post was found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+
+                var user = await userManager.FindByIdAsync(Convert.ToString(membership.UserID));
+                if (user == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found for the selected post";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+               
+                var postHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(membership.HouseID);
+                });
+                if (postHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No corresponding house data could be found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
                 //If a user likes a post, they cannot dislike the post. 
                 var houseMetaData = await Task.Run(() =>
                 {
@@ -93,6 +145,7 @@ namespace HomeNetAPI.Controllers
                         return BadRequest(response);
                     } else
                     {
+                        await messagingService.SendFirebaseMessage(20, $"{postHouse.Name}: New Like Recorded!", $"{selectedUser.Name} {selectedUser.Surname} liked one of your posts in one of your homes {postHouse.Name}. Login to the app to view more details", user.FirebaseMessagingToken, token);
                         response.DidError = false;
                         response.Message = "Like registered successfully!";
                         response.Model = likeReg;
@@ -175,6 +228,7 @@ namespace HomeNetAPI.Controllers
                 {
                     return userManager.FindByEmailAsync(emailAddress);
                 });
+                
                 if (selectedUser == null)
                 {
                     response.DidError = true;
@@ -213,8 +267,9 @@ namespace HomeNetAPI.Controllers
                     }
                     else
                     {
+                        
                         response.DidError = false;
-                        response.Message = "Like registered successfully!";
+                        response.Message = "Dislike registered successfully!";
                         response.Model = likeReg;
                         return Ok(response);
                     }
@@ -424,6 +479,93 @@ namespace HomeNetAPI.Controllers
                 response.Message = error.Message + " " + error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetPostDetails([FromQuery] int housePostID, [FromQuery] String clientCode)
+        {
+            SingleResponse<PostDetailsViewModel> response = new SingleResponse<PostDetailsViewModel>();
+            List<User> LikedUserList = new List<Models.User>();
+            List<User> DislikedUserList = new List<Models.User>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var housePost = await Task.Run(() =>
+                {
+                    return housePostRepository.GetHousePost(housePostID);
+                });
+                if (housePost == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house post was found with the supplied data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var housePostMetaDataList = await Task.Run(() =>
+                {
+                    return metaDataRepository.GetHousePostMetaData(housePost.HousePostID);
+                });
+                if (housePostMetaDataList == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No meta information is available for this post";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (HousePostMetaData data in housePostMetaDataList)
+                {
+                    var foundUser = await userManager.FindByIdAsync(Convert.ToString(data.UserID));
+                    if (foundUser != null)
+                    {
+                        if (data.Liked == 1)
+                        {
+                            LikedUserList.Add(foundUser);
+                        } else
+                        {
+                            DislikedUserList.Add(foundUser);
+                        }
+                    }
+          
+                }
+                var postData = new PostDetailsViewModel()
+                {
+                    HousePostID = housePost.HousePostID,
+                    TotalLikes = 0,
+                    TotalDislikes = 0,
+                };
+                postData.TotalLikes = housePostMetaDataList.Where(i => i.Liked == 1).ToList().Count;
+                postData.TotalDislikes = housePostMetaDataList.Where(i => i.Disliked == 1).ToList().Count;
+                List<String> likedNames = new List<string>();
+                List<String> dislikedNames = new List<String>();
+                foreach (User user in LikedUserList)
+                {
+                    likedNames.Add(user.Name + " " + user.Surname);
+                }
+                foreach (User user in DislikedUserList)
+                {
+                    dislikedNames.Add(user.Name + " " + user.Surname);
+                }
+                postData.Likes = likedNames;
+                postData.Dislikes = dislikedNames;
+                response.DidError = false;
+                response.Message = "Meta data for this post";
+                response.Model = postData;
+                return Ok(response);
+
+
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return NotFound(response);
             }
         }
     }

@@ -353,77 +353,106 @@ namespace HomeNetAPI.Controllers
                     response.Model = null;
                     return NotFound(response);
                 }
-                //If House post is null, attempt to find the linking membership information on the server
-                if (housePost.HouseMember == null)
+                var membership = await Task.Run(() =>
                 {
-                    var selectedUser = await userManager.FindByEmailAsync(emailAddress);
-                    if (selectedUser == null)
-                    {
-                        response.DidError = true;
-                        response.Message = "User data is not registered onto the system. Please try again later";
-                        response.Model = null;
-                        return NotFound(response);
-                    }
-
-                    var houseMemberships = await Task.Run(() =>
-                    {
-                        return houseMemberRepository.GetHouseMember(selectedUser.Id);
-                    });
-                    if (houseMemberships == null)
-                    {
-                        response.DidError = true;
-                        response.Message = "No house memberships found. Please join a house";
-                        response.Model = null;
-                        return NotFound(response);
-                    }
-
-                    foreach (HouseMember membership in houseMemberships)
-                    {
-                        if (membership.HouseMemberID == housePost.HouseMemberID)
-                        {
-                            housePost.HouseMember = membership;
-                        }
-                    }
-
-                    if (housePost.HouseMember == null)
-                    {
-                        response.DidError = true;
-                        response.Message = "No house membership could be found with the post. Please try again";
-                        response.Model = null;
-                        return BadRequest(response);
-                    }
-
-                }
-
-                HousePostFlag flaggedPost = new HousePostFlag()
-                {
-                    HousePostFlagID = 0,
-                    DateFlagged = DateTime.Now.ToString(),
-                    IsDeleted = 0,
-                    IsFlagged = 1,
-                    HousePost = housePost,
-                    HousePostID = housePost.HousePostID,
-                    HouseMemberID = housePost.HouseMemberID,
-                    Message = flagReason
-                };
-
-                var flagPostResult = await Task.Run(() =>
-                {
-                    return housePostRepository.FlagHousePost(flaggedPost);
+                    return houseMemberRepository.GetHouseMembership(housePost.HouseMemberID);
                 });
-                if (flagPostResult == null)
+                if (membership == null)
                 {
                     response.DidError = true;
-                    response.Message = "Error occurred while flagging post. Please try again";
+                    response.Message = "No house membership could be found. Please try again";
                     response.Model = null;
-                    return BadRequest(response);
+                    return NotFound(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(membership.HouseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var houseAdmin = await userManager.FindByIdAsync(Convert.ToString(selectedHouse.UserID));
+                var user = await userManager.FindByEmailAsync(emailAddress);
+                if (user == null)
+                {
+                    response.DidError = true;
+                    response.Message = "Sorry, your email address does not return any records on the system, therefore, you cannot flag posts";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var userMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(user.Id);
+                });
+                if (userMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Model = null;
+                    response.Message = "The selected user is not subscribed to any houses. Please try again later";
+                    return NotFound(response);
+                }
+                var resultMembership = userMemberships.First(i => i.UserID == user.Id && i.HouseID == selectedHouse.HouseID);
+                if (resultMembership == null)
+                {
+                    response.DidError = true;
+                    response.Model = null;
+                    response.Message = "You do not have a membership to the current house you are wishing to report to";
+                    return NotFound(response);
+                }
+                if (houseAdmin == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No administrator was found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var newFlag = new HousePostFlag()
+                {
+                    DateFlagged = DateTime.Now.ToString(),
+                    HouseMemberID = resultMembership.HouseMemberID,
+                    HousePostID = housePost.HousePostID,
+                    IsDeleted = 0,
+                    IsFlagged = 1,
+                    Message = flagReason,
+                };
+                var flagCall = await Task.Run(() =>
+                {
+                    return housePostRepository.FlagHousePost(newFlag);
+                });
+                if (flagCall == null)
+                {
+                    response.DidError = true;
+                    response.Message = "Error occurred while flagging the house post. Please try again later";
+                    response.Model = null;
+                    return NotFound(response);
                 } else
                 {
-                    response.DidError = false;
-                    response.Message = "House post flagged successfully!";
-                    response.Model = null;
-                    return Ok(response);
+                    var updatePost = await Task.Run(() =>
+                    {
+                        return housePostRepository.UpdateHousePost(housePost);
+                    });
+                    if (updatePost != null)
+                    {
+                        await messagingService.SendFirebaseMessage(10, $"{selectedHouse.Name}: New Post Flagged", $"{user.Name} {user.Surname} flagged a house post in your house. Please login to the app to deal with this", houseAdmin.FirebaseMessagingToken, token);
+                        housePost.IsFlagged = 1;
+                        response.DidError = false;
+                        response.Message = "House post flagged successfully!";
+                        response.Model = newFlag;
+                        return Ok(response);
+                    } else
+                    {
+                        response.DidError = true;
+                        response.Message = "House post has been flagged, however, this could not be updated on the main post";
+                        response.Model = newFlag;
+                        return BadRequest(response);
+                    }
                 }
+                
+               
 
 
         } catch (Exception error)
