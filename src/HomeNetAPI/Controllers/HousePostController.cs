@@ -185,7 +185,7 @@ namespace HomeNetAPI.Controllers
                     if (file != null)
                     {//Add a new image 
                         String finalFileName = "";
-                        String directory = $"C:/HomeNET/Houses/Posts/{selectedHouse.HouseID}";
+                        String directory = $"C:/HomeNET/Posts/Houses/{selectedHouse.HouseID}";
                         if (file.FileName.Contains(":"))
                         {
                             finalFileName = file.FileName.Replace(":", "_");
@@ -461,6 +461,209 @@ namespace HomeNetAPI.Controllers
                 response.Message = error.Message;
                 response.Model = null;
                 return BadRequest(response);
+            }
+        }
+        
+        [HttpGet]
+        public async Task<IActionResult> GetAllMultimediaPosts([FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            ListResponse<HousePostViewModel> response = new ListResponse<HousePostViewModel>();
+            List<House> subscribedHouses = new List<House>();
+            List<HouseMember> houseMembers = new List<HouseMember>();
+            List<HousePost> housePosts = new List<HousePost>();
+            List<HousePostViewModel> finalPostList = new List<HousePostViewModel>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var currentUser = await userManager.FindByEmailAsync(emailAddress);
+                if (currentUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user was found with the given credentials";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var userMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMember(currentUser.Id);
+                });
+                if (userMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The current user is not subscribed to any houses.";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                foreach (HouseMember subscription in userMemberships)
+                {
+                    var house = await Task.Run(() =>
+                    {
+                        return houseRepository.GetHouse(subscription.HouseID);
+                    });
+                    if (house != null)
+                    {
+                        subscribedHouses.Add(house);
+                    }
+                }
+                if (subscribedHouses.Count <= 0)
+                {
+                    response.DidError = true;
+                    response.Message = "No houses were found for the subscriptions";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (House house in subscribedHouses)
+                {
+                    var memberships = await Task.Run(() =>
+                    {
+                        return houseMemberRepository.GetHouseMemberships(house.HouseID);
+                    });
+                    if (memberships != null)
+                    {
+                        foreach (HouseMember member in memberships)
+                        {
+                            houseMembers.Add(member);
+                        }
+                    }
+                }
+                if (houseMembers == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house members were found for subscribed houses";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (HouseMember resultHouseMembers in houseMembers)
+                {
+                    var posts = await Task.Run(() =>
+                    {
+                        return housePostRepository.GetHousePosts(resultHouseMembers.HouseMemberID);
+                    });
+                    if (posts != null)
+                    {
+                        foreach (HousePost post in posts)
+                        {
+                            housePosts.Add(post);
+                        }
+                    }
+                }
+                if (housePosts.Count <= 0)
+                {
+                    response.DidError = true;
+                    response.Message = "No posts were found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (HousePost post in housePosts)
+                {
+                    var model = new HousePostViewModel()
+                    {
+                        DatePosted = post.DatePosted,
+                        PostText = post.PostText,
+                        HouseMemberID = post.HouseMemberID,
+                        MediaResource = post.MediaResource,
+                        IsDeleted = post.IsDeleted,
+                        IsFlagged = post.IsFlagged,
+                        HousePostID = post.HousePostID
+
+                    };
+                    var houseMember = houseMembers.First(i => i.HouseMemberID == post.HouseMemberID);
+                    if (houseMember != null)
+                    {
+                        var finalUser = await userManager.FindByIdAsync(Convert.ToString(houseMember.UserID));
+                        if (finalUser != null)
+                        {
+                            model.Name = finalUser.Name;
+                            model.Surname = finalUser.Surname;
+                            model.EmailAddress = finalUser.Email;
+                            if (model.MediaResource != "" && model.MediaResource != null)
+                            {
+                                finalPostList.Add(model);
+                            }
+                        }
+                    }
+                }
+                if (finalPostList.Count <= 0)
+                {
+                    response.DidError = true;
+                    response.Message = "No posts were found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                else
+                {
+                    response.DidError = false;
+                    response.Message = "Herewith the house posts";
+                    response.Model = finalPostList;
+                    return Ok(response);
+                }
+
+
+            }
+            catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetHousePostImage([FromQuery] int housePostID, [FromQuery] String clientCode)
+        {
+            SingleResponse<FileStream> response = new SingleResponse<FileStream>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var housePost = await Task.Run(() =>
+                {
+                    return housePostRepository.GetHousePost(housePostID);
+                });
+                if (housePost == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house post was found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (housePost.MediaResource == "" || housePost.MediaResource == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The selected house post does not have an image linked to it";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var file = new FileStream(housePost.MediaResource, FileMode.Open, FileAccess.Read);
+                if (file != null)
+                {
+                    return File(file, "image/jpeg");
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "Error opening file";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return NotFound(response);
             }
         }
 
