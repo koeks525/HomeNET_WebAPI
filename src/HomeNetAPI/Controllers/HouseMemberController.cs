@@ -7,6 +7,8 @@ using HomeNetAPI.Repository;
 using Microsoft.AspNetCore.Identity;
 using HomeNetAPI.Models;
 using Microsoft.AspNetCore.Authorization;
+using HomeNetAPI.Services;
+using HomeNetAPI.ViewModels;
 
 namespace HomeNetAPI.Controllers
 {
@@ -18,9 +20,13 @@ namespace HomeNetAPI.Controllers
         private UserManager<User> userManager;
         private String androidClient = "bab9baac6fac05ac083c5f42ec25d76d";
         private IHouseRepository houseRepository;
+        private IFirebaseMessagingService messagingService;
+        private IMailMessage emailService;
 
-        public HouseMemberController(IHouseMemberRepository houseMemberRepository, UserManager<User> userManager, IHouseRepository houseRepository)
+        public HouseMemberController(IHouseMemberRepository houseMemberRepository, UserManager<User> userManager, IHouseRepository houseRepository, IFirebaseMessagingService messagingService, IMailMessage emailService)
         {
+            this.emailService = emailService;
+            this.messagingService = messagingService;
             this.houseMemberRepository = houseMemberRepository;
             this.userManager = userManager;
             this.houseRepository = houseRepository;
@@ -227,89 +233,82 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> ApproveHouseMember([FromQuery] String emailAddress, [FromQuery] int houseMemberID ,[FromQuery] String clientCode) {
+        public async Task<IActionResult> ApproveHouseMember([FromQuery] int houseID,[FromQuery] String emailAddress,  [FromQuery] String adminEmail, [FromQuery] String clientCode)
+        {
             SingleResponse<HouseMember> response = new SingleResponse<HouseMember>();
             try
             {
-               if (clientCode != androidClient)
+                if (clientCode != androidClient)
                 {
                     response.DidError = true;
-                    response.Message = "Please send a valid client code to the server";
+                    response.Message = "Please send valid client credentials to the server";
                     response.Model = null;
                     return BadRequest(response);
                 }
-
+                var adminUser = await userManager.FindByEmailAsync(adminEmail);
                 var selectedUser = await userManager.FindByEmailAsync(emailAddress);
-                if (selectedUser == null)
+                if (adminUser == null || selectedUser == null)
                 {
                     response.DidError = true;
-                    response.Message = "No user was found with the provided data";
+                    response.Message = "No user credentials were found on the system";
                     response.Model = null;
                     return NotFound(response);
                 }
-
-                var selectedMembership = await Task.Run(() =>
-                {
-                    return houseMemberRepository.GetHouseMembership(houseMemberID);
-                });
-                if (selectedMembership == null)
-                {
-                    response.DidError = true;
-                    response.Message = "No membership could be found with the given details";
-                    response.Model = null;
-                    return NotFound(response);
-                }
-
                 var selectedHouse = await Task.Run(() =>
                 {
-                    return houseRepository.GetHouse(selectedMembership.HouseID);
+                    return houseRepository.GetHouse(selectedUser.Id);
                 });
                 if (selectedHouse == null)
                 {
                     response.DidError = true;
-                    response.Message = "No linking house could be found";
-                    response.Model = null;
-                    return NotFound(response);
-                }
-
-                if (selectedMembership.HouseID != selectedHouse.HouseID)
-                {
-                    response.DidError = true;
-                    response.Message = "Mismatch in house and membership";
+                    response.Message = "The selected user is not an admin of the house, therefore the user cannot approve members";
                     response.Model = null;
                     return BadRequest(response);
                 }
-
-                selectedMembership.ApprovalStatus = 0;
-                selectedMembership.DateApproved = DateTime.Now.ToString();
-
-                //Figure out how to send notification to the user regarding their request
-                
-
-
-
-                var approval = await Task.Run(() =>
+                var selectedMemberships = await Task.Run(() =>
                 {
-                    return houseMemberRepository.UpdateMembership(selectedMembership);
+                    return houseMemberRepository.GetHouseMemberships(selectedHouse.HouseID);
                 });
-                if (approval != null)
+                if (selectedMemberships == null)
                 {
+                    response.DidError = true;
+                    response.Message = "There are no house members in this house. Please try again";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var userMembership = selectedMemberships.First(i => i.UserID == selectedUser.Id && i.HouseID == selectedHouse.HouseID && i.ApprovalStatus == 1);
+                if (userMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The selected user is not a member of the selected house. Please try again";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                userMembership.ApprovalStatus = 0; //0 Approved
+                userMembership.DateApproved = DateTime.Now.ToString();
+                var updateMembership = await Task.Run(() =>
+                {
+                    return houseMemberRepository.UpdateMembership(userMembership);
+                });
+                if (updateMembership != null)
+                {
+                    await messagingService.SendFirebaseMessage(100, $"{selectedHouse.Name}: House Membership Approved!", $"Congratulations, {selectedUser.Name}, your membership to {selectedHouse.Name} has been approved! Log in to the mobile app and start networking!", selectedUser.FirebaseMessagingToken, "");
+                    bool result = await Task.Run(() => { return emailService.SendMailMessage($"{selectedUser.Name} {selectedUser.Surname}", selectedUser.Email, $"{selectedHouse.Name}: House Membership Approved!", $"Congratulations {selectedUser.Name},\n\nYour request to join a house ({selectedHouse.Name}) has been approved! Log in to the mobile application on your device to start the networking experience. \n\nKind Regards,\n\nHomeNET Administrative Services"); });
                     response.DidError = false;
-                    response.Message = "House Member has been approved successfully!";
-                    response.Model = approval;
+                    response.Message = "House membership approved";
+                    response.Model = null;
                     return Ok(response);
                 } else
                 {
                     response.DidError = true;
-                    response.Message = "Something went wrong with approving the house member";
+                    response.Message = "Somethting went wrong with approving your membership. Please try again later";
                     response.Model = null;
                     return BadRequest(response);
                 }
-               
             } catch (Exception error)
             {
                 response.DidError = true;
-                response.Message = error.Message;
+                response.Message = error.Message + "\n" + error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
             }
@@ -348,6 +347,259 @@ namespace HomeNetAPI.Controllers
             {
                 response.DidError = true;
                 response.Message = error.Message;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> DeclineHouseMember([FromQuery] int houseID, [FromQuery] String emailAddress, [FromQuery] String adminEmail, [FromQuery] String clientCode)
+        {
+            SingleResponse<HouseMember> response = new SingleResponse<HouseMember>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the given ID";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var adminUser = await userManager.FindByEmailAsync(adminEmail);
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (adminUser == null || selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user details were found with the supplied data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (selectedHouse.UserID != adminUser.Id)
+                {
+                    response.DidError = true;
+                    response.Message = "The selected user is not an administrator for the house";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var houseMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMemberships(selectedHouse.HouseID);
+                });
+                if (houseMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The house selected does not have any active memberships. Please try again later";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedMembership = houseMemberships.First(i => i.HouseID == selectedHouse.HouseID && i.UserID == selectedUser.Id && i.ApprovalStatus != 2);
+                if (selectedMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No membership was found for the selected user";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                selectedMembership.ApprovalStatus = 2;
+                selectedMembership.DateLeft = DateTime.Now.ToString();
+                var updateTask = await Task.Run(() =>
+                {
+                    return houseMemberRepository.UpdateMembership(selectedMembership);
+                });
+                if (updateTask != null)
+                {
+                    response.DidError = false;
+                    response.Message = "User request declined successfully!";
+                    response.Model = updateTask;
+                    await messagingService.SendFirebaseMessage(200, $"{selectedHouse.Name}: Join Request Declined", $"{selectedHouse.Name}: Unfortunately, the administrator of the house has declined your request. If you beleive this was an error, please speak to them or re-join.", selectedUser.FirebaseMessagingToken, "");
+                    bool result = await Task.Run(() =>
+                    {
+                        return emailService.SendMailMessage($"{selectedUser.Name} {selectedUser.Surname}", selectedUser.Email, $"{selectedHouse.Name}: Join Request Declined!", $"Hi, \n\nUnfortunately, your request for joining house {selectedHouse.Name} has been declined by the house administrator. If you beleive this is an error, please speak to the house administrator. Alternatively, you could request to join the house again");
+                    });
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "Something went wrong with declining the join request";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return NotFound(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetBannedHouseMembers([FromQuery] int houseID, [FromQuery] string adminEmail, [FromQuery] String clientCode)
+        {
+            ListResponse<HouseMemberViewModel> response = new ListResponse<HouseMemberViewModel>();
+            List<HouseMemberViewModel> bannedUserList = new List<HouseMemberViewModel>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found for the selected data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var houseMemberships = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMemberships(selectedHouse.HouseID);
+                });
+                if (houseMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No memberships were found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var bannedMemberships = houseMemberships.Where(i => i.HouseID == selectedHouse.HouseID && i.ApprovalStatus == 2).ToList();
+                if (bannedMemberships == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No banned members were found for the selected house";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                foreach (HouseMember member in bannedMemberships)
+                {
+                    var foundUser = await userManager.FindByIdAsync(Convert.ToString(member.UserID));
+                    if (foundUser != null)
+                    {
+                        var bannedMember = new HouseMemberViewModel()
+                        {
+                            UserID = foundUser.Id,
+                            Name = foundUser.Name,
+                            Surname = foundUser.Surname,
+                            EmailAddress = foundUser.Email,
+                            CountryID = foundUser.CountryID,
+                            Reason = ""
+                        };
+                        bannedUserList.Add(bannedMember);
+                    }
+                }
+                if (bannedUserList.Count > 0)
+                {
+                    response.DidError = false;
+                    response.Message = "Herewit the banned users";
+                    response.Model = bannedUserList;
+                    return Ok(response);
+                } else
+                {
+                    response.DidError = true;
+                    response.Message = "No banned users found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> LeaveHouse([FromQuery] int houseMemberID, [FromQuery] int houseID, [FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            SingleResponse<HouseMember> response = new SingleResponse<HouseMember>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var selectedUser = await userManager.FindByEmailAsync(emailAddress);
+                if (selectedUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "The sent email address does not match any records on our system";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(houseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found with the supplied data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedMembership = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMembership(houseMemberID);
+                });
+                if (selectedMembership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No membership was found with the supplied data";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (selectedMembership.HouseID != selectedHouse.HouseID)
+                {
+                    response.DidError = true;
+                    response.Message = "You are not a member of the selected house";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                selectedMembership.DateLeft = DateTime.Now.ToString();
+                selectedMembership.ApprovalStatus = 2;
+                var updateTask = await Task.Run(() =>
+                {
+                    return houseMemberRepository.UpdateMembership(selectedMembership);
+                });
+                if (updateTask == null)
+                {
+                    response.DidError = true;
+                    response.Message = "Something went wrong with updating house membership";
+                    response.Model = null;
+                    return BadRequest(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Message = "You have left the house successfully... you will be logged out";
+                    response.Model = updateTask;
+                    return Ok(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
             }
