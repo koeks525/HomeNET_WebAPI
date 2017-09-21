@@ -123,7 +123,8 @@ namespace HomeNetAPI
                 }
             });
             app.UseStaticFiles();
-            
+            loggerFactory.AddConsole(Configuration.GetSection("Logging"));
+            loggerFactory.AddDebug();
             app.UseSwagger();
             app.UseSwaggerUi(c => c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "HomeNet API v1"));
             //DBInitializer.Initialize(context);

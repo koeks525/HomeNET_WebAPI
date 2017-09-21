@@ -146,10 +146,33 @@ namespace HomeNetAPI.Controllers
                 });
                 if (finalResult != null)
                 {
-                    response.DidError = false;
-                    response.Message = $"House {houseName} has been created successfully!";
-                    response.Model = finalResult;
-                    return Ok(response);
+                    var houseMembership = new HouseMember()
+                    {
+                        HouseID = finalResult.HouseID,
+                        DateApplied = DateTime.Now.ToString(),
+                        DateApproved = DateTime.Now.ToString(),
+                        UserID = selectedUser.Id,
+                        ApprovalStatus = 1,
+
+                    };
+                    var addMember = await Task.Run(() =>
+                    {
+                        return houseMemberRepository.AddHouseMember(houseMembership);
+                    });
+                    if (addMember != null)
+                    {
+                        response.DidError = false;
+                        response.Message = $"House {houseName} has been created successfully!";
+                        response.Model = finalResult;
+                        return Ok(response);
+                    } else
+                    {
+                        response.DidError = false;
+                        response.Message = $"House {houseName} has been created successfully! Membership couldn't be added";
+                        response.Model = finalResult;
+                        return Ok(response);
+                    }
+                    
                 } else
                 {
                     response.DidError = false;
@@ -179,7 +202,7 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateHouse([FromQuery] int houseID, [FromForm] String houseName, [FromForm]String houseDescription, [FromForm] String emailAddress, [FromForm] int isPrivate, [FromForm] String oneTimePin, [FromForm] IFormFile imageFile, [FromQuery] String clientCode)
+        public async Task<IActionResult> UpdateHouse([FromQuery] int houseID, [FromForm] String houseName, [FromForm] String houseDescription, [FromForm] String emailAddress, [FromForm] int isPrivate, [FromForm] String oneTimePin, [FromForm] IFormFile imageFile, [FromQuery] String clientCode)
         {
             SingleResponse<House> response = new SingleResponse<House>();
             try
@@ -398,7 +421,7 @@ namespace HomeNetAPI.Controllers
             SingleResponse<House> response = new SingleResponse<House>();
             try
             {
-                if (clientCode == null)
+                if (clientCode != androidClient)
                 {
                     response.DidError = true;
                     response.Message = "Please send valid client details to the server";
@@ -409,12 +432,12 @@ namespace HomeNetAPI.Controllers
                 {
                     return houseRepository.GetHouse(houseID);
                 });
-                if (selectedHouse!=null)
+                if (selectedHouse != null)
                 {
                     response.DidError = false;
                     response.Message = "Here is the selected house";
                     response.Model = selectedHouse;
-                    return Ok(selectedHouse);
+                    return Ok(response);
                 } else
                 {
                     response.DidError = true;
@@ -699,7 +722,6 @@ namespace HomeNetAPI.Controllers
             }
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetUsersInHouse([FromQuery] int houseID, [FromQuery] String clientCode)
         {
@@ -763,17 +785,6 @@ namespace HomeNetAPI.Controllers
                 response.Model = null;
                 return BadRequest(response);
             }
-        }
-
-        private String GenerateRandomString()
-        {
-            Random random = new Random();
-            String finalString = "";
-            for (int a = 0; a < 10; a++)
-            {
-                finalString += Convert.ToString(random.Next(1, 50));
-            }
-            return finalString.Trim();
         }
         
         [HttpGet]
@@ -981,6 +992,18 @@ namespace HomeNetAPI.Controllers
                 response.Model = null;
                 return BadRequest(response);
             }
+        }
+
+        [HttpPost]
+        private String GenerateRandomString()
+        {
+            Random random = new Random();
+            String finalString = "";
+            for (int a = 0; a < 10; a++)
+            {
+                finalString += Convert.ToString(random.Next(1, 50));
+            }
+            return finalString.Trim();
         }
     }
 }

@@ -23,7 +23,7 @@ namespace HomeNetAPI.Repository
 
         public House DeleteHouse(int houseID)
         {
-            var house = homeNetContext.Houses.FirstOrDefault(h => h.HouseID == houseID);
+            var house = homeNetContext.Houses.First(h => h.HouseID == houseID);
             house.IsDeleted = 1;
             homeNetContext.SaveChanges();
             return house;
@@ -31,7 +31,7 @@ namespace HomeNetAPI.Repository
 
         public House GetHouse(int houseID)
         {
-            var house = homeNetContext.Houses.FirstOrDefault(h => h.HouseID == houseID);
+            var house = homeNetContext.Houses.First(h => h.HouseID == houseID);
             return house;
         }
 

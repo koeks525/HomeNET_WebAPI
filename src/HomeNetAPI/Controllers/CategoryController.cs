@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace HomeNetAPI.Controllers
 {
     [AllowAnonymous]
-    [Route("[controller]/[action]")]
+    [Route("/[controller]/[action]")]
     public class CategoryController : Controller
     {
         private ICategoryRepository categoryRepository;

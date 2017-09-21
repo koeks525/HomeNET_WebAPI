@@ -18,7 +18,6 @@ using SkiaSharp;
 namespace HomeNetAPI.Controllers
 {
     [Authorize]
-    //Route should be House/{houseId}/HouseControls
     [Route("/[controller]/[action]")]
     public class HousePostController : Controller
     {
@@ -30,7 +29,6 @@ namespace HomeNetAPI.Controllers
         private IHouseRepository houseRepository;
         private IImageProcessor imageProcessor;
         private IFirebaseMessagingService messagingService;
-
 
         public HousePostController(UserManager<User> userManager, IHousePostRepository housePostRepository, IHouseRepository houseRepository, IImageProcessor imageProcessor, IHouseMemberRepository houseMemberRepository, IFirebaseMessagingService messagingService)
         {
@@ -93,8 +91,7 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpPost]
-        ///Add a new photo for a selected user in a selected house. 
-        public async Task<IActionResult> AddHousePost([FromQuery] int houseID, [FromForm] String emailAddress, [FromForm] String postText, [FromForm] String location, [FromQuery] String clientCode, [FromForm] IFormFile file)
+        public async Task<IActionResult> AddHousePost([FromQuery] int houseID, [FromForm] String emailAddress, [FromForm] String postText, [FromForm] String location, [FromQuery] String clientCode, [FromForm]IFormFile file)
         {
             List<User> subscribedMembers = new List<Models.User>();
             SingleResponse<HousePost> response = new SingleResponse<HousePost>();
@@ -272,7 +269,7 @@ namespace HomeNetAPI.Controllers
             
         }
 
-        [HttpDelete]
+        [HttpGet]
         public async Task<IActionResult> DeleteHousePost([FromQuery] String clientCode, [FromQuery] int housePostId)
         {
             SingleResponse<HousePost> response = new SingleResponse<HousePost>();
@@ -323,6 +320,45 @@ namespace HomeNetAPI.Controllers
             {
                 response.DidError = true;
                 response.Message = error.Message;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetHousePost([FromQuery] int housePostID, [FromQuery] String clientCode)
+        {
+            SingleResponse<HousePost> response = new SingleResponse<HousePost>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                var housePost = await Task.Run(() =>
+                {
+                    return housePostRepository.GetHousePost(housePostID);
+                });
+                if (housePost == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house post found";
+                    response.Model = null;
+                    return NotFound(response);
+                } else
+                {
+                    response.DidError = false;
+                    response.Model = housePost;
+                    response.Message = "Herewith the house post";
+                    return Ok(response);
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
             }

@@ -10,6 +10,11 @@
     <PackageTargetFallback>$(PackageTargetFallback);dotnet5.6;portable-net45+win8</PackageTargetFallback>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DocumentationFile></DocumentationFile>
+    <Optimize>False</Optimize>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Update="wwwroot\**\*;Repository\**\*;Models\**\*;ViewModels\**\*;Controllers\**\*;Migrations\**\*;Services\**\*;Certificates\**\*">
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

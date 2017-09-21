@@ -35,7 +35,8 @@ namespace HomeNetAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetActiveHouseMembers([FromQuery] int houseID, [FromQuery] string clientCode)
         {
-            ListResponse<HouseMember> response = new ListResponse<HouseMember>();
+            ListResponse<HouseMemberViewModel> response = new ListResponse<HouseMemberViewModel>();
+            List<HouseMemberViewModel> activeUserList = new List<HouseMemberViewModel>();
             try
             {
                 if (clientCode != androidClient)
@@ -52,10 +53,37 @@ namespace HomeNetAPI.Controllers
                 });
                 if (activeCall != null)
                 {
-                    response.DidError = false;
-                    response.Message = "Here are active members for the selected house";
-                    response.Model = activeCall;
-                    return Ok(response);
+                    foreach (HouseMember member in activeCall)
+                    {
+                        var foundUser = await userManager.FindByIdAsync(Convert.ToString(member.UserID));
+                        if (foundUser != null)
+                        {
+                            var model = new HouseMemberViewModel()
+                            {
+                                UserID = foundUser.Id,
+                                Name = foundUser.Name,
+                                Surname = foundUser.Surname,
+                                EmailAddress = foundUser.Email,
+                                HouseMemberID = member.HouseMemberID,
+                                CountryID = foundUser.CountryID,
+                                Reason = ""
+                            };
+                            activeUserList.Add(model);
+                        }
+                    }
+                    if (activeUserList.Count > 0)
+                    {
+                        response.DidError = false;
+                        response.Message = "Here are active members for the selected house";
+                        response.Model = activeUserList;
+                        return Ok(response);
+                    } else
+                    {
+                        response.DidError = true;
+                        response.Message = "No users were found";
+                        response.Model = null;
+                        return NotFound(response);
+                    }
                 } else
                 {
                     response.DidError = true;
@@ -75,7 +103,8 @@ namespace HomeNetAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPendingHouseMembers([FromQuery] int houseID, [FromQuery] string clientCode)
         {
-            ListResponse<HouseMember> response = new ListResponse<HouseMember>();
+            List<HouseMemberViewModel> houseMemberList = new List<HouseMemberViewModel>();
+            ListResponse<HouseMemberViewModel> response = new ListResponse<HouseMemberViewModel>();
             try
             {
                 if (androidClient != clientCode)
@@ -92,10 +121,39 @@ namespace HomeNetAPI.Controllers
                 });
                 if (pendingCall != null)
                 {
-                    response.DidError = false;
-                    response.Message = "Here is a list of users pending approval for the house";
-                    response.Model = pendingCall;
-                    return Ok(response);
+                    foreach (HouseMember member in pendingCall)
+                    {
+                        var foundUser = await userManager.FindByIdAsync(Convert.ToString(member.UserID));
+                        if (foundUser != null)
+                        {
+                            var foundMember = new HouseMemberViewModel()
+                            {
+                                UserID = foundUser.Id,
+                                Name = foundUser.Name,
+                                Surname = foundUser.Surname,
+                                CountryID = foundUser.CountryID,
+                                EmailAddress = foundUser.Email,
+                                HouseMemberID = member.HouseMemberID,
+                                Reason = ""
+                            };
+                            houseMemberList.Add(foundMember);
+                        }
+                    }
+                    if (houseMemberList.Count > 0)
+                    {
+                        
+                        response.DidError = false;
+                        response.Message = "Herewith pending house members";
+                        response.Model = houseMemberList;
+                        return Ok(response);
+                        
+                    } else
+                    {
+                        response.DidError = true;
+                        response.Message = "No pending house members found";
+                        response.Model = null;
+                        return NotFound(response);
+                    }
                 } else
                 {
                     response.DidError = true;
@@ -113,9 +171,10 @@ namespace HomeNetAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetBannedHouseMembers([FromQuery] int houseID, [FromQuery] String clientCode)
+        public async Task<IActionResult> GetBannedMembers([FromQuery] int houseID, [FromQuery] String clientCode)
         {
-            ListResponse<HouseMember> response = new ListResponse<HouseMember>();
+            ListResponse<HouseMemberViewModel> response = new ListResponse<HouseMemberViewModel>();
+            List<HouseMemberViewModel> bannedUserList = new List<HouseMemberViewModel>();
             try
             {
                 if (androidClient != clientCode)
@@ -132,10 +191,37 @@ namespace HomeNetAPI.Controllers
                 });
                 if (bannedCall != null)
                 {
-                    response.DidError = false;
-                    response.Message = "Here are a list of banned users for the house";
-                    response.Model = bannedCall;
-                    return Ok(response);
+                    foreach (HouseMember thisMember in bannedCall)
+                    {
+                        var foundUser = await userManager.FindByIdAsync(Convert.ToString(thisMember.UserID));
+                        if (foundUser != null)
+                        {
+                            var bannedMember = new HouseMemberViewModel()
+                            {
+                                HouseMemberID = thisMember.HouseMemberID,
+                                Name = foundUser.Name,
+                                Surname = foundUser.Surname,
+                                EmailAddress = foundUser.Email,
+                                Reason = "",
+                                UserID = foundUser.Id,
+                            };
+                            bannedUserList.Add(bannedMember);
+                           
+                        }
+                    }
+                    if (bannedUserList.Count > 0)
+                    {
+                        response.DidError = false;
+                        response.Message = "Here are a list of banned users for the house";
+                        response.Model = bannedUserList;
+                        return Ok(response);
+                    } else
+                    {
+                        response.DidError = true;
+                        response.Message = "No house members found";
+                        response.Model = null;
+                        return NotFound(response);
+                    }
                 } else
                 {
                     response.DidError = true;
@@ -232,7 +318,7 @@ namespace HomeNetAPI.Controllers
             }
         }
 
-        [HttpPut]
+        [HttpGet]
         public async Task<IActionResult> ApproveHouseMember([FromQuery] int houseID,[FromQuery] String emailAddress,  [FromQuery] String adminEmail, [FromQuery] String clientCode)
         {
             SingleResponse<HouseMember> response = new SingleResponse<HouseMember>();
@@ -256,9 +342,16 @@ namespace HomeNetAPI.Controllers
                 }
                 var selectedHouse = await Task.Run(() =>
                 {
-                    return houseRepository.GetHouse(selectedUser.Id);
+                    return houseRepository.GetHouse(houseID);
                 });
                 if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house was found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (selectedHouse.UserID != adminUser.Id)
                 {
                     response.DidError = true;
                     response.Message = "The selected user is not an admin of the house, therefore the user cannot approve members";
@@ -296,7 +389,7 @@ namespace HomeNetAPI.Controllers
                     bool result = await Task.Run(() => { return emailService.SendMailMessage($"{selectedUser.Name} {selectedUser.Surname}", selectedUser.Email, $"{selectedHouse.Name}: House Membership Approved!", $"Congratulations {selectedUser.Name},\n\nYour request to join a house ({selectedHouse.Name}) has been approved! Log in to the mobile application on your device to start the networking experience. \n\nKind Regards,\n\nHomeNET Administrative Services"); });
                     response.DidError = false;
                     response.Message = "House membership approved";
-                    response.Model = null;
+                    response.Model = updateMembership;
                     return Ok(response);
                 } else
                 {
@@ -352,7 +445,7 @@ namespace HomeNetAPI.Controllers
             }
         }
 
-        [HttpPut]
+        [HttpGet]
         public async Task<IActionResult> DeclineHouseMember([FromQuery] int houseID, [FromQuery] String emailAddress, [FromQuery] String adminEmail, [FromQuery] String clientCode)
         {
             SingleResponse<HouseMember> response = new SingleResponse<HouseMember>();

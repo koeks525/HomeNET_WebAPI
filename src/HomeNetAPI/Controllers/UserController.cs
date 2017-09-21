@@ -52,17 +52,6 @@ namespace HomeNetAPI.Controllers
             this.housePostRepository = housePostRepository;
         }
 
-        private String GenerateRandomString()
-        {
-            Random random = new Random();
-            String finalString = "";
-            for (int a = 0; a < 10; a++)
-            {
-                finalString += Convert.ToString(random.Next(1, 50));
-            }
-            return finalString.Trim();
-        } 
-
         [HttpGet]
         public async Task<IActionResult> GetProfilePicture([FromQuery] String emailAddress, [FromQuery] String clientCode)
         {
@@ -932,8 +921,20 @@ namespace HomeNetAPI.Controllers
             }
         }
 
+       
+        private String GenerateRandomString()
+        {
+            Random random = new Random();
+            String finalString = "";
+            for (int a = 0; a < 10; a++)
+            {
+                finalString += Convert.ToString(random.Next(1, 50));
+            }
+            return finalString.Trim();
+        }
 
-        
+
+
 
 
     }
