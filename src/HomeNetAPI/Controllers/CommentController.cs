@@ -279,7 +279,7 @@ namespace HomeNetAPI.Controllers
                 {
                     foreach (User thisUser in userList)
                     {
-                        await messagingService.SendFirebaseMessage(3, $"{selectedHouse.Name}: New Comment on {ownerUser.Name} Post", $"A new comment has been posted on {ownerUser.Name}'s post!. Log into HomeNET to view the comment", thisUser.FirebaseMessagingToken, key);
+                        await messagingService.SendFirebaseMessage(newCommentCall.HousePostID, $"{selectedHouse.Name}: New Comment on {ownerUser.Name} Post", $"A new comment has been posted on {ownerUser.Name}'s post!. Log into HomeNET to view the comment", "new_comment", newCommentCall.Comment, thisUser.FirebaseMessagingToken, key);
                     }
 
 

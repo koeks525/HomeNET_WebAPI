@@ -385,7 +385,7 @@ namespace HomeNetAPI.Controllers
                 });
                 if (updateMembership != null)
                 {
-                    await messagingService.SendFirebaseMessage(100, $"{selectedHouse.Name}: House Membership Approved!", $"Congratulations, {selectedUser.Name}, your membership to {selectedHouse.Name} has been approved! Log in to the mobile app and start networking!", selectedUser.FirebaseMessagingToken, "");
+                    await messagingService.SendFirebaseMessage(updateMembership.HouseMemberID, $"{selectedHouse.Name}: House Membership Approved!", $"Congratulations, {selectedUser.Name}, your membership to {selectedHouse.Name} has been approved! Log in to the mobile app and start networking!","membership_approved", updateMembership.DateApproved, selectedUser.FirebaseMessagingToken, "");
                     bool result = await Task.Run(() => { return emailService.SendMailMessage($"{selectedUser.Name} {selectedUser.Surname}", selectedUser.Email, $"{selectedHouse.Name}: House Membership Approved!", $"Congratulations {selectedUser.Name},\n\nYour request to join a house ({selectedHouse.Name}) has been approved! Log in to the mobile application on your device to start the networking experience. \n\nKind Regards,\n\nHomeNET Administrative Services"); });
                     response.DidError = false;
                     response.Message = "House membership approved";
@@ -515,7 +515,7 @@ namespace HomeNetAPI.Controllers
                     response.DidError = false;
                     response.Message = "User request declined successfully!";
                     response.Model = updateTask;
-                    await messagingService.SendFirebaseMessage(200, $"{selectedHouse.Name}: Join Request Declined", $"{selectedHouse.Name}: Unfortunately, the administrator of the house has declined your request. If you beleive this was an error, please speak to them or re-join.", selectedUser.FirebaseMessagingToken, "");
+                    await messagingService.SendFirebaseMessage(updateTask.HouseMemberID, $"{selectedHouse.Name}: Join Request Declined", $"{selectedHouse.Name}: Unfortunately, the administrator of the house has declined your request. If you beleive this was an error, please speak to them or re-join.","membership_declined", Convert.ToString(updateTask.IsDeleted), selectedUser.FirebaseMessagingToken, "");
                     bool result = await Task.Run(() =>
                     {
                         return emailService.SendMailMessage($"{selectedUser.Name} {selectedUser.Surname}", selectedUser.Email, $"{selectedHouse.Name}: Join Request Declined!", $"Hi, \n\nUnfortunately, your request for joining house {selectedHouse.Name} has been declined by the house administrator. If you beleive this is an error, please speak to the house administrator. Alternatively, you could request to join the house again");

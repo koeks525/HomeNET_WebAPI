@@ -204,7 +204,7 @@ namespace HomeNetAPI.Controllers
                     return BadRequest(response);
                 } else
                 {
-                    await messagingService.SendFirebaseMessage(4, "New Message Received", $"{senderUser.Name} sent you a new message. Log into HomeNET to see the message", selectedUser.FirebaseMessagingToken, key);
+                    await messagingService.SendFirebaseMessage(addMessageCall.MessageThreadID, "New Message Received", $"{senderUser.Name} sent you a new message. Log into HomeNET to see the message", "new_message", addMessageCall.Message, selectedUser.FirebaseMessagingToken, key);
                 
                     response.DidError = false;
                     response.Message = "Message created and sent successfully";
@@ -338,7 +338,7 @@ namespace HomeNetAPI.Controllers
                 {
                     var result = await Task.Run(() =>
                     {
-                        return messagingService.SendFirebaseMessage(1, $"New Message From {selectedUser.Name}", $"A New message has been sent by {selectedUser.Name}.", thisUser.FirebaseMessagingToken, key);
+                        return messagingService.SendFirebaseMessage(newTask.MessageThreadMessageID, $"New Message From {selectedUser.Name}", $"A New message has been sent by {selectedUser.Name}.", "message_reply", newTask.Message, thisUser.FirebaseMessagingToken, key);
                     });
                 }
                 response.DidError = false;

@@ -15,7 +15,7 @@ namespace HomeNetAPI.Services
     public class FirebaseMessagingService : IFirebaseMessagingService
     {
 
-        public async Task<bool> SendFirebaseMessage(int id, string title, string message, string token, string key)
+        public async Task<bool> SendFirebaseMessage(int id, string title, string message, string keyword, string content, string token, string key)
         {
            
             FirebaseInterface service = RestClient.For<FirebaseInterface>("https://fcm.googleapis.com");
@@ -27,7 +27,8 @@ namespace HomeNetAPI.Services
                     body = message,
                     title = title,
                     dataID = id,
-
+                    keyword = keyword,
+                    content = content
                 },
                 priority = "high"
             };

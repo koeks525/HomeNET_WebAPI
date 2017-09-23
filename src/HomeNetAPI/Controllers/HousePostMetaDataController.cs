@@ -145,7 +145,7 @@ namespace HomeNetAPI.Controllers
                         return BadRequest(response);
                     } else
                     {
-                        await messagingService.SendFirebaseMessage(20, $"{postHouse.Name}: New Like Recorded!", $"{selectedUser.Name} {selectedUser.Surname} liked one of your posts in one of your homes {postHouse.Name}. Login to the app to view more details", user.FirebaseMessagingToken, token);
+                        await messagingService.SendFirebaseMessage(likeReg.HousePostID, $"{postHouse.Name}: New Like Recorded!", $"{selectedUser.Name} {selectedUser.Surname} liked one of your posts in one of your homes {postHouse.Name}. Login to the app to view more details", "new_like", Convert.ToString(likeReg.HousePostMetaDataID), user.FirebaseMessagingToken, token);
                         response.DidError = false;
                         response.Message = "Like registered successfully!";
                         response.Model = likeReg;

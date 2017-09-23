@@ -211,7 +211,7 @@ namespace HomeNetAPI.Controllers
                             {
                                 foreach (User currentUser in subscribedMembers)
                                 {
-                                   await messagingService.SendFirebaseMessage(2, $"{selectedHouse.Name}: New Post!", $"{selectedUser.Name} added a new post to your house! Log into HomeNET now to view the post! ", currentUser.FirebaseMessagingToken, token);
+                                   await messagingService.SendFirebaseMessage(result.HousePostID, $"{selectedHouse.Name}: New Post!", $"{selectedUser.Name} added a new post to your house! Log into HomeNET now to view the post! ", "new_post", result.PostText, currentUser.FirebaseMessagingToken, token);
                                 }
                             }
                                 response.DidError = false;
@@ -241,7 +241,7 @@ namespace HomeNetAPI.Controllers
                         {
                             foreach (User currentUser in subscribedMembers)
                             {
-                                await messagingService.SendFirebaseMessage(2, $"{selectedHouse.Name}: New Post!", $"{selectedUser.Name} added a new post to your house! Log into HomeNET now to view the post! ", currentUser.FirebaseMessagingToken, token);
+                                await messagingService.SendFirebaseMessage(addResult.HousePostID, $"{selectedHouse.Name}: New Post!", $"{selectedUser.Name} added a new post to your house! Log into HomeNET now to view the post! ", "new_post", addResult.PostText, currentUser.FirebaseMessagingToken, token);
                             }
                         }
 
@@ -320,6 +320,76 @@ namespace HomeNetAPI.Controllers
             {
                 response.DidError = true;
                 response.Message = error.Message;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetHousePostData([FromQuery] int housePostID, [FromQuery] String clientCode)
+        {
+            SingleResponse<HousePostViewModel> response = new SingleResponse<HousePostViewModel>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var housePost = await Task.Run(() =>
+                {
+                    return housePostRepository.GetHousePost(housePostID);
+                });
+                if (housePost == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house post was found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var membership = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMembership(housePost.HouseMemberID);
+                });
+                if (membership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house member found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var foundUser = await userManager.FindByIdAsync(Convert.ToString(membership.UserID));
+                if (foundUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var viewModel = new HousePostViewModel()
+                {
+                    HousePostID = housePost.HousePostID,
+                    Name = foundUser.Name,
+                    Surname = foundUser.Surname,
+                    EmailAddress = foundUser.Email,
+                    DatePosted = housePost.DatePosted,
+                    PostText = housePost.PostText,
+                    HouseMemberID = membership.HouseMemberID,
+                    IsDeleted = housePost.IsDeleted,
+                    IsFlagged = housePost.IsFlagged,
+                    MediaResource = housePost.MediaResource
+                };
+                response.DidError = false;
+                response.Message = "Herewith your post data";
+                response.Model = viewModel;
+                return Ok(response);
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + "\n" + error.StackTrace;
                 response.Model = null;
                 return BadRequest(response);
             }
@@ -473,7 +543,7 @@ namespace HomeNetAPI.Controllers
                     });
                     if (updatePost != null)
                     {
-                        await messagingService.SendFirebaseMessage(10, $"{selectedHouse.Name}: New Post Flagged", $"{user.Name} {user.Surname} flagged a house post in your house. Please login to the app to deal with this", houseAdmin.FirebaseMessagingToken, token);
+                        await messagingService.SendFirebaseMessage(updatePost.HousePostID, $"{selectedHouse.Name}: New Post Flagged", $"{user.Name} {user.Surname} flagged a house post in your house. Please login to the app to deal with this", "flagged_post", updatePost.PostText, houseAdmin.FirebaseMessagingToken, token);
                         housePost.IsFlagged = 1;
                         response.DidError = false;
                         response.Message = "House post flagged successfully!";
@@ -849,6 +919,120 @@ namespace HomeNetAPI.Controllers
                 return BadRequest(response);
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> ProcessFlaggedPost([FromQuery] int housePostID, [FromQuery] int responseMode, [FromQuery] String emailAddress, [FromQuery] String clientCode)
+        {
+            SingleResponse<HousePost> response = new SingleResponse<HousePost>();
+            try
+            {
+                if (clientCode != androidClient)
+                {
+                    response.DidError = true;
+                    response.Message = "Please send valid client credentials to the server";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+
+                var foundUser = await userManager.FindByEmailAsync(emailAddress);
+                if (foundUser == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No user found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var housePost = await Task.Run(() =>
+                {
+                    return housePostRepository.GetHousePost(housePostID);
+                });
+                if (housePost == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No house post found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var membership = await Task.Run(() =>
+                {
+                    return houseMemberRepository.GetHouseMembership(housePost.HouseMemberID);
+                });
+                if (membership == null)
+                {
+                    response.DidError = true;
+                    response.Message = "No linking membership found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                var selectedHouse = await Task.Run(() =>
+                {
+                    return houseRepository.GetHouse(membership.HouseID);
+                });
+                if (selectedHouse == null)
+                {
+                    response.DidError = true;
+                    response.Message = "House not found";
+                    response.Model = null;
+                    return NotFound(response);
+                }
+                if (selectedHouse.UserID != foundUser.Id)
+                {
+                    response.DidError = true;
+                    response.Message = "Unauthorized: You are not the admin of the house";
+                    response.Model = null;
+                    return BadRequest(response);
+                }
+                if (responseMode == 1)
+                {//This means deleting the post
+                    housePost.IsDeleted = 1;
+                    housePost.IsFlagged = 1;
+                    var updateTask = await Task.Run(() =>
+                    {
+                        return housePostRepository.UpdateHousePost(housePost);
+                    });
+                    if (updateTask == null)
+                    {
+                        response.DidError = true;
+                        response.Message = "Error updating house post";
+                        response.Model = null;
+                        return BadRequest(response);
+                    } else
+                    {
+                        response.DidError = false;
+                        response.Message = "House post has been deleted successfully!";
+                        response.Model = updateTask;
+                        return Ok(response);
+                    }
+                } else
+                {
+                    housePost.IsFlagged = 0;
+                    housePost.IsDeleted = 0;
+                    var updateTask = await Task.Run(() =>
+                    {
+                        return housePostRepository.UpdateHousePost(housePost);
+                    });
+                    if (updateTask == null)
+                    {
+                        response.DidError = true;
+                        response.Message = "Error updating house post";
+                        response.Model = null;
+                        return BadRequest(response);
+                    } else
+                    {
+                        response.DidError = false;
+                        response.Message = "House post updated successfully!";
+                        response.Model = updateTask;
+                        return Ok(response);
+                    }
+                }
+            } catch (Exception error)
+            {
+                response.DidError = true;
+                response.Message = error.Message + " \n" + error.StackTrace;
+                response.Model = null;
+                return BadRequest(response);
+            }
+        } 
 
         private String GenerateRandomString()
         {
